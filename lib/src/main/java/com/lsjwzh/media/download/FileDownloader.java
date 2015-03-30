@@ -316,7 +316,7 @@ public class FileDownloader {
         return mIsStop.get();
     }
 
-    public boolean ismFinished() {
+    public boolean isFinished() {
         return mFinished;
     }
 

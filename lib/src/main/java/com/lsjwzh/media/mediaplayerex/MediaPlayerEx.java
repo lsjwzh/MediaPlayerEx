@@ -1,9 +1,12 @@
 package com.lsjwzh.media.mediaplayerex;
 
+import android.annotation.TargetApi;
 import android.content.Context;
+import android.os.Environment;
 import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 
 import java.util.ArrayList;
@@ -19,7 +22,7 @@ import java.util.List;
 public abstract class MediaPlayerEx {
     public static final int CACHE_MODE_NONE = 0;
     public static final int CACHE_MODE_LOCAL = 1;
-    public static final int CACHE_MODE_PROXY = 1;
+    public static final int CACHE_MODE_PROXY = 2;
     public static final float DEFAULT_PREPARE_BUFFER_RATE = 0.1f;
     public static final int DEFAULT_MIN_PREPARE_BUFFER_SIZE = 50 * 1024;
 
@@ -99,7 +102,7 @@ public abstract class MediaPlayerEx {
     final Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>> mListenersMap = new Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>>();
     @CacheMode
     int mCacheMode = 0;
-    String mCacheDir;
+    String mCacheDir = Environment.getExternalStorageDirectory()+"/mpex";
 
 
     /**
@@ -149,6 +152,10 @@ public abstract class MediaPlayerEx {
     public abstract boolean isReleased();
 
     public abstract void setDisplay(SurfaceHolder holder);
+
+    @TargetApi(14)
+    public abstract void setDisplay(Surface pSurface);
+
 
     public abstract void setPlaybackSpeed(float speed);
 
@@ -225,7 +232,7 @@ public abstract class MediaPlayerEx {
         mListenersMap.clear();
     }
 
-    public synchronized  @Nullable   <T extends IEventListener> List<IEventListener> getListeners(@NonNull Class<T> pTClass) {
+    public synchronized  @NonNull   <T extends IEventListener> List<IEventListener> getListeners(@NonNull Class<T> pTClass) {
         Class clazzAsKey = findDirectSubClassOfIEventListener(pTClass);
         if (!mListenersMap.containsKey(clazzAsKey)) {
             LinkedList<IEventListener> listeners = new LinkedList<IEventListener>();
@@ -241,11 +248,15 @@ public abstract class MediaPlayerEx {
      * @return
      */
     protected Class findDirectSubClassOfIEventListener(Class pListenerClass) {
-        if (pListenerClass.getSuperclass() == IEventListener.class) {
-            return pListenerClass;
-        } else {
-            return findDirectSubClassOfIEventListener(pListenerClass.getSuperclass());
+        if (pListenerClass.isInterface()
+                && pListenerClass.getInterfaces().length>0) {
+            for(Class c:pListenerClass.getInterfaces()){
+                if(c==IEventListener.class){
+                    return pListenerClass;
+                }
+            }
         }
+        throw new IllegalAccessError("can not find direct sub class of IEventListener ");
     }
 
     protected List<Class> findEventInterfaces(Class pListenerClass) {

@@ -1,7 +1,10 @@
 package com.lsjwzh.media.mediaplayerex;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.media.MediaPlayer;
+import android.support.annotation.IntDef;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 
 import com.lsjwzh.media.download.FileDownloader;
@@ -15,6 +18,15 @@ import java.io.IOException;
  * Created by panwenye on 14-8-20.
  */
 public class SysMediaPlayerImpl extends MediaPlayerEx {
+    public static final int NONE = 0;
+    public static final int WAIT_FOR_SET_DATASOURCE = 1;
+    public static final int WAIT_FOR_BUFFERING = 2;
+    public static final int WAIT_FOR_PREPARE = 3;
+
+    @IntDef({NONE,WAIT_FOR_SET_DATASOURCE,WAIT_FOR_BUFFERING,WAIT_FOR_PREPARE})
+    @interface State{
+
+    }
     StrongerMediaPlayer mMediaPlayer;
     private boolean mIsPrepared;
     private boolean mIsReleased;
@@ -31,11 +43,17 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
      * only for LOCAL CACHE MODE
      */
     FileDownloader mFileDownloader;
+
     /**
      *  only for LOCAL CACHE MODE
      */
-    boolean mWaitForSetDataSource;
-    boolean mWaitForPrepareAsync;
+    @State int mStateWithLocalCache;
+    /**
+     *  only for LOCAL CACHE MODE
+     */
+    long latestProgressOnPrepare = 0;
+    private int mSavedPosition;
+
 
     @Override
     public void setDataSource(Context context, String uri) {
@@ -55,10 +73,10 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 @Override
                 public void run() {
                     if (mMediaPlayer != null) {
-                        int currentPosition = mMediaPlayer.getCurrentPosition();
+                        mSavedPosition = mMediaPlayer.getCurrentPosition();
                         int duration = mMediaPlayer.getDuration();
                         for (IEventListener listener : getListeners(OnPositionUpdateListener.class)) {
-                            ((OnPositionUpdateListener)listener).onPositionUpdate(currentPosition, duration);
+                            ((OnPositionUpdateListener)listener).onPositionUpdate(mSavedPosition, duration);
                         }
                     }
                 }
@@ -87,6 +105,12 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 @Override
                 public void onCompletion(MediaPlayer mp) {
 
+                     if(mFileDownloader!=null){
+                         latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
+                         if(!mFileDownloader.isFinished()&& mSavedPosition < getDuration() -1000) {
+                             mStateWithLocalCache = WAIT_FOR_BUFFERING;
+                         }
+                     }
 //                    isVideoBuffered().
 //                            subscribe(new SubscriberBase<Boolean>() {
 //                                @Override
@@ -122,7 +146,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             if (getCacheMode() == CACHE_MODE_PROXY) {
                 throw new IllegalAccessError("no implementation");
             } else if (getCacheMode() == CACHE_MODE_LOCAL) {
-                mWaitForSetDataSource = true;
+                mStateWithLocalCache = WAIT_FOR_SET_DATASOURCE;
                 //if the cache mode is local,we must transfer remote uri to local uri
                 mLocalUri = getCacheDir() + File.separator + FileUtil.extractFileNameFromURI(uri);
                 //if cachemode not NONE, start buffer
@@ -134,28 +158,44 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                     @Override
                     public void onProgress(long progress, long length) {
                         //when  buffer limit reached
-                        if(mWaitForSetDataSource) {
+                        if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE
+                                || mStateWithLocalCache==WAIT_FOR_PREPARE
+                                || mStateWithLocalCache==WAIT_FOR_BUFFERING) {
                             long prepareBufferSize = (long) Math.max(getMinBufferBlockSize(), getPrepareBufferRate() * length);
-                            if (progress >= prepareBufferSize) {
-                                mWaitForSetDataSource = false;
-                                try {
-                                    mMediaPlayer.setDataSource(mLocalUri);
-                                } catch (IOException e) {
-                                    for (IEventListener listener : getListeners(OnErrorListener.class)) {
-                                        ((OnErrorListener)listener).onError(e);
+                            if (progress-latestProgressOnPrepare >= prepareBufferSize
+                                    || (mFileDownloader!=null&&mFileDownloader.getDownloadedFile().length()==length)) {
+                                //when the file has been downloaded,or reached the buffer limit,excute prepare or setDataSource operation
+                                if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE
+                                        || mStateWithLocalCache==WAIT_FOR_PREPARE) {
+                                    try {
+                                        mMediaPlayer.setDataSource(mLocalUri);
+                                    } catch (IOException e) {
+                                        for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                                            ((OnErrorListener) listener).onError(e);
+                                        }
+                                        return;
                                     }
                                 }
-                                if(mWaitForPrepareAsync){
-                                    mWaitForPrepareAsync = false;
+                                if(mStateWithLocalCache==WAIT_FOR_PREPARE
+                                        ||mStateWithLocalCache==WAIT_FOR_BUFFERING){
                                     prepareAsync();
+                                }
+                                mStateWithLocalCache = NONE;
+                            }else {
+                                for (IEventListener listener : getListeners(OnBufferingListener.class)) {
+                                    ((OnBufferingListener)listener).onBuffering((int)((progress-latestProgressOnPrepare)*1f / prepareBufferSize)*100);
                                 }
                             }
                         }
+
+
                     }
 
                     @Override
                     public void onSuccess(File pFile) {
-
+                        for (IEventListener listener : getListeners(OnBufferingListener.class)) {
+                            ((OnBufferingListener)listener).onBuffering(100);
+                        }
                     }
 
                     @Override
@@ -178,7 +218,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 
     @Override
     public void prepare() {
-        if(mWaitForSetDataSource){
+        if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE){
             throw new IllegalStateException("must wait for the local file to be buffered completely");
         }
         try {
@@ -196,9 +236,12 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 
     @Override
     public void prepareAsync() {
-        if(mWaitForSetDataSource){
-            mWaitForPrepareAsync = true;
+        if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE){
+            mStateWithLocalCache = WAIT_FOR_PREPARE;
             return;
+        }
+        if(mMediaPlayer==null){
+            throw new IllegalStateException("must call setDatasurce firstly");
         }
         mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
@@ -346,6 +389,19 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
         if (mMediaPlayer != null) {
             try {
                 mMediaPlayer.setDisplay(holder);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    @TargetApi(14)
+    @Override
+    public void setDisplay(Surface pSurface) {
+        if (mMediaPlayer != null) {
+            try {
+                mMediaPlayer.setSurface(pSurface);
             } catch (Exception e) {
                 e.printStackTrace();
             }
