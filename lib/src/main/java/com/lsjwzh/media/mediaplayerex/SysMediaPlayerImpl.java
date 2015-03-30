@@ -293,7 +293,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 mMediaMonitor.quit();
             }
             mMediaPlayer.release();
-
+            mMediaPlayer = null;
             mIsReleased = true;
             for (IEventListener listener : getListeners(OnReleaseListener.class)) {
                 ((OnReleaseListener)listener).onRelease();
