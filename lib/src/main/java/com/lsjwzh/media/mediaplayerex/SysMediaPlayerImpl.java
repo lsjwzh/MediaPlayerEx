@@ -57,8 +57,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                     if (mMediaPlayer != null) {
                         int currentPosition = mMediaPlayer.getCurrentPosition();
                         int duration = mMediaPlayer.getDuration();
-                        for (EventListener listener : getListeners()) {
-                            listener.onPositionUpdate(currentPosition, duration);
+                        for (IEventListener listener : getListeners(OnPositionUpdateListener.class)) {
+                            ((OnPositionUpdateListener)listener).onPositionUpdate(currentPosition, duration);
                         }
                     }
                 }
@@ -66,8 +66,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             mMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
                 @Override
                 public void onSeekComplete(MediaPlayer mp) {
-                    for (EventListener listener : getListeners()) {
-                        listener.onSeekComplete(getCurrentPosition());
+                    for (IEventListener listener : getListeners(OnSeekCompleteListener.class)) {
+                        ((OnSeekCompleteListener)listener).onSeekComplete(getCurrentPosition());
                     }
                 }
             });
@@ -78,14 +78,15 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                     if (isPlaying()) {
                         percent = 100;
                     }
-                    for (EventListener listener : getListeners()) {
-                        listener.onBuffering(percent);
+                    for (IEventListener listener : getListeners(OnBufferingListener.class)) {
+                        ((OnBufferingListener)listener).onBuffering(percent);
                     }
                 }
             });
             mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
                 @Override
                 public void onCompletion(MediaPlayer mp) {
+
 //                    isVideoBuffered().
 //                            subscribe(new SubscriberBase<Boolean>() {
 //                                @Override
@@ -111,15 +112,15 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 //                                    }
 //                                }
 //                            });
-                    for (EventListener listener : getListeners()) {
-                        listener.onPlayComplete();
+                    for (IEventListener listener : getListeners(OnPlayCompleteListener.class)) {
+                        ((OnPlayCompleteListener)listener).onPlayComplete(SysMediaPlayerImpl.this);
                     }
                 }
             });
         }
         try {
             if (getCacheMode() == CACHE_MODE_PROXY) {
-                mMediaPlayer.setDataSource(mLocalUri);
+                throw new IllegalAccessError("no implementation");
             } else if (getCacheMode() == CACHE_MODE_LOCAL) {
                 mWaitForSetDataSource = true;
                 //if the cache mode is local,we must transfer remote uri to local uri
@@ -140,8 +141,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                                 try {
                                     mMediaPlayer.setDataSource(mLocalUri);
                                 } catch (IOException e) {
-                                    for (EventListener listener : getListeners()) {
-                                        listener.onError(e);
+                                    for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                                        ((OnErrorListener)listener).onError(e);
                                     }
                                 }
                                 if(mWaitForPrepareAsync){
@@ -159,7 +160,9 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 
                     @Override
                     public void onError(Throwable t) {
-
+                        for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                            ((OnErrorListener)listener).onError(t);
+                        }
                     }
                 });
                 mFileDownloader.start();
@@ -167,8 +170,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 mMediaPlayer.setDataSource(uri);
             }
         } catch (IOException e) {
-            for (EventListener listener : getListeners()) {
-                listener.onError(e);
+            for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                ((OnErrorListener)listener).onError(e);
             }
         }
     }
@@ -181,12 +184,12 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
         try {
             mMediaPlayer.prepare();
             mIsPrepared = true;
-            for (EventListener listener : getListeners()) {
-                listener.onPrepared();
+            for (IEventListener listener : getListeners(OnPreparedListener.class)) {
+                ((OnPreparedListener)listener).onPrepared();
             }
         } catch (IOException e) {
-            for (EventListener listener : getListeners()) {
-                listener.onError(e);
+            for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                ((OnErrorListener)listener).onError(e);
             }
         }
     }
@@ -201,8 +204,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             @Override
             public void onPrepared(MediaPlayer mp) {
                 mIsPrepared = true;
-                for (EventListener listener : getListeners()) {
-                    listener.onPrepared();
+                for (IEventListener listener : getListeners(OnPreparedListener.class)) {
+                    ((OnPreparedListener)listener).onPrepared();
                 }
             }
         });
@@ -217,8 +220,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.start();
             }
-            for (EventListener listener : getListeners()) {
-                listener.onStart();
+            for (IEventListener listener : getListeners(OnStartListener.class)) {
+                ((OnStartListener)listener).onStart();
             }
         }
     }
@@ -245,8 +248,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.pause();
             }
-            for (EventListener listener : getListeners()) {
-                listener.onPause();
+            for (IEventListener listener : getListeners(OnPauseListener.class)) {
+                ((OnPauseListener)listener).onPause();
             }
         }
     }
@@ -261,8 +264,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.pause();
             }
-            for (EventListener listener : getListeners()) {
-                listener.onStop();
+            for (IEventListener listener : getListeners(OnStopListener.class)) {
+                ((OnStopListener)listener).onStop();
             }
         }
     }
@@ -277,8 +280,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.pause();
             }
-            for (EventListener listener : getListeners()) {
-                listener.onReset();
+            for (IEventListener listener : getListeners(OnResetListener.class)) {
+                ((OnResetListener)listener).onReset();
             }
         }
     }
@@ -292,8 +295,8 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             mMediaPlayer.release();
 
             mIsReleased = true;
-            for (EventListener listener : getListeners()) {
-                listener.onRelease();
+            for (IEventListener listener : getListeners(OnReleaseListener.class)) {
+                ((OnReleaseListener)listener).onRelease();
             }
         }
     }

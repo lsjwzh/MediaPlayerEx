@@ -2,10 +2,13 @@ package com.lsjwzh.media.mediaplayerex;
 
 import android.content.Context;
 import android.support.annotation.IntDef;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.view.SurfaceHolder;
 
-
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -21,69 +24,81 @@ public abstract class MediaPlayerEx {
     public static final int DEFAULT_MIN_PREPARE_BUFFER_SIZE = 50 * 1024;
 
 
-    @IntDef({CACHE_MODE_NONE, CACHE_MODE_LOCAL,CACHE_MODE_PROXY})
-    public @interface CacheMode{
+    @IntDef({CACHE_MODE_NONE, CACHE_MODE_LOCAL, CACHE_MODE_PROXY})
+    public @interface CacheMode {
 
     }
+
     public class UnknownMediaPlayerException extends Exception {
         public int what;
         public int extra;
 
     }
 
-    public interface EventListener {
-        void onPrepared();
+    public interface IEventListener {
 
-        void onStart();
+    }
 
-        void onPlayComplete();
+    public interface OnPreparedListener extends IEventListener {
+        public void onPrepared();
+    }
 
-        /**
-         * call after seek action complete
-         *
-         * @param positionAfterSeek
-         */
-        void onSeekComplete(long positionAfterSeek);
+    public interface OnStartListener extends IEventListener {
+        public void onStart();
+    }
 
-        void onPause();
+    public interface OnPlayCompleteListener extends IEventListener {
+        public void onPlayComplete(MediaPlayerEx mp);
+    }
 
-        void onStop();
+    public interface OnSeekCompleteListener extends IEventListener {
+        public void onSeekComplete(long positionAfterSeek);
+    }
 
-        void onReset();
+    public interface OnPauseListener extends IEventListener {
+        public void onPause();
+    }
 
-        void onRelease();
+    public interface OnStopListener extends IEventListener {
+        public void onStop();
+    }
 
-        /**
-         * notify position change while playback
-         *
-         * @param position
-         * @param duration
-         */
-        void onPositionUpdate(long position, long duration);
+    public interface OnResetListener extends IEventListener {
+        public void onReset();
+    }
 
-        /**
-         * trigger when volume changed
-         *
-         * @param newV1
-         * @param newV2
-         */
-        void onVolumeChanged(float newV1, float newV2);
+    public interface OnReleaseListener extends IEventListener {
+        public void onRelease();
+    }
 
-        /**
-         * notify buffering progress
-         *
-         * @param loadedPercentage
-         */
-        void onBuffering(int loadedPercentage);
+    public interface OnPositionUpdateListener extends IEventListener {
+        public void onPositionUpdate(long position, long duration);
+    }
 
-        void onError(Exception e);
+    public interface OnVolumeChangedListener extends IEventListener {
+        public void onVolumeChanged(float newV1, float newV2);
 
-        void onVideoSizeChanged(int width, int height);
+    }
+
+    public interface OnBufferingListener extends IEventListener {
+        public void onBuffering(int loadedPercentage);
+
+    }
+
+    public interface OnErrorListener extends IEventListener {
+        public void onError(Throwable e);
+
+    }
+
+    public interface OnVideoSizeChangedListener extends IEventListener {
+        public void onVideoSizeChanged(int width, int height);
+
     }
 
 
-    final LinkedList<EventListener> mListeners = new LinkedList<EventListener>();
-    @CacheMode int mCacheMode = 0;
+    final Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>> mListenersMap = new Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>>();
+    @CacheMode
+    int mCacheMode = 0;
     String mCacheDir;
 
 
@@ -141,25 +156,21 @@ public abstract class MediaPlayerEx {
 
     public abstract void setAudioStreamType(int streamMusic);
 
-    public void addListener(EventListener listener) {
-        if (!mListeners.contains(listener)) {
-            mListeners.add(listener);
-        }
-    }
-
-    public void setCacheMode(@CacheMode int pCacheMode){
+    public void setCacheMode(@CacheMode int pCacheMode) {
         mCacheMode = pCacheMode;
     }
 
-    public @CacheMode int getCacheMode(){
+    public
+    @CacheMode
+    int getCacheMode() {
         return mCacheMode;
     }
 
-    public String getCacheDir(){
+    public String getCacheDir() {
         return mCacheDir;
     }
 
-    public void setCacheDir(String pCacheDir){
+    public void setCacheDir(String pCacheDir) {
         mCacheDir = pCacheDir;
     }
 
@@ -181,12 +192,69 @@ public abstract class MediaPlayerEx {
     }
 
 
-    public void removeListener(EventListener listener) {
-        mListeners.remove(listener);
+    public synchronized <T extends IEventListener> void registerListener(@NonNull Class<T> listenerClass,@NonNull  T listener) {
+        Class clazzAsKey = findDirectSubClassOfIEventListener(listenerClass);
+        //if not any listeners,create a listener list
+        if (!mListenersMap.containsKey(clazzAsKey)) {
+            LinkedList<IEventListener> listeners = new LinkedList<IEventListener>();
+            listeners.add(listener);
+            mListenersMap.put(clazzAsKey, listeners);
+        } else {
+            LinkedList<IEventListener> listeners = mListenersMap.get(clazzAsKey);
+            listeners.add(listener);
+        }
     }
 
-    public List<EventListener> getListeners() {
-        EventListener[] eventListeners = new EventListener[mListeners.size()];
-        return Arrays.asList(mListeners.toArray(eventListeners));
+    public synchronized <T extends IEventListener> void registerListener(@NonNull T listener) {
+        List<Class> eventClasses = findEventInterfaces(listener.getClass());
+        for (Class c : eventClasses) {
+            registerListener(c, listener);
+        }
+    }
+
+
+    public synchronized void unregisterListener(@NonNull IEventListener listener) {
+        Class clazzAsKey = findDirectSubClassOfIEventListener(listener.getClass());
+        if (mListenersMap.containsKey(clazzAsKey)) {
+            LinkedList<IEventListener> listeners = mListenersMap.get(clazzAsKey);
+            listeners.remove(listener);
+        }
+    }
+
+    public synchronized void clearListeners() {
+        mListenersMap.clear();
+    }
+
+    public synchronized  @Nullable   <T extends IEventListener> List<IEventListener> getListeners(@NonNull Class<T> pTClass) {
+        Class clazzAsKey = findDirectSubClassOfIEventListener(pTClass);
+        if (!mListenersMap.containsKey(clazzAsKey)) {
+            LinkedList<IEventListener> listeners = new LinkedList<IEventListener>();
+            mListenersMap.put(clazzAsKey, listeners);
+        }
+        return  mListenersMap.get(clazzAsKey);
+    }
+
+    /**
+     * ensure the result is direct sub class of IEventListener
+     *
+     * @param pListenerClass
+     * @return
+     */
+    protected Class findDirectSubClassOfIEventListener(Class pListenerClass) {
+        if (pListenerClass.getSuperclass() == IEventListener.class) {
+            return pListenerClass;
+        } else {
+            return findDirectSubClassOfIEventListener(pListenerClass.getSuperclass());
+        }
+    }
+
+    protected List<Class> findEventInterfaces(Class pListenerClass) {
+        List<Class> classList = new ArrayList<Class>();
+        for (Class clazz : pListenerClass.getInterfaces()) {
+            if (IEventListener.class.isAssignableFrom(clazz)) {
+                classList.add(clazz);
+            }
+        }
+        return classList;
     }
 }
