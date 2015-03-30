@@ -354,7 +354,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 
     @Override
     public void setPlaybackSpeed(float speed) {
-
+        throw new UnsupportedOperationException("the default mediaplayer of system is unable to change playback speed");
     }
 
     @Override
