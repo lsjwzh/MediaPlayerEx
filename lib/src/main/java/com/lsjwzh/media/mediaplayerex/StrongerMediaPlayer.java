@@ -7,6 +7,7 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.support.annotation.IntDef;
 
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -81,6 +82,11 @@ public class StrongerMediaPlayer extends MediaPlayer {
     @Override
     public void setDataSource(String path) throws IOException, IllegalArgumentException, SecurityException, IllegalStateException {
         super.setDataSource(path);
+    }
+
+    @Override
+    public void setDataSource(FileDescriptor fd, long offset, long length) throws IOException, IllegalArgumentException, IllegalStateException {
+        super.setDataSource(fd, offset, length);
     }
 
     @Override

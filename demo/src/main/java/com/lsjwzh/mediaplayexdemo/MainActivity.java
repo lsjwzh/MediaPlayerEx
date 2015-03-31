@@ -27,7 +27,7 @@ public class MainActivity extends ActionBarActivity {
                 Surface s= new Surface(surface);
                 mMediaPlayerEx = new SysMediaPlayerImpl();
                 mMediaPlayerEx.setCacheMode(MediaPlayerEx.CACHE_MODE_LOCAL);
-                mMediaPlayerEx.setDataSource(MainActivity.this,"http://mofunsky-mfs.qiniudn.com/105/323/20150325105916006859000205_mfs.mp4");
+                mMediaPlayerEx.setDataSource(MainActivity.this,"http://mofunsky-video.qiniudn.com/126/314/20150324094118997736001676.mp4");
                 mMediaPlayerEx.setDisplay(s);
                 mMediaPlayerEx.registerListener(MediaPlayerEx.OnPreparedListener.class,new MediaPlayerEx.OnPreparedListener(){
 

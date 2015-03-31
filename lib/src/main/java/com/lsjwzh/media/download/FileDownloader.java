@@ -2,6 +2,7 @@ package com.lsjwzh.media.download;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -235,6 +236,7 @@ public class FileDownloader {
                 if(readCountForProgressNotofy>=10) {
                     readCountForProgressNotofy = 0;
                     onProgress(readedSize, mediaLength);
+//                    SystemClock.sleep(2000);//mock slow network
                 }
             }
         } catch (OutOfMemoryError outOfMemoryError) {

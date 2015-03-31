@@ -4,11 +4,11 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.support.annotation.IntDef;
+import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
 import com.lsjwzh.media.download.FileDownloader;
-
 import com.lsjwzh.media.proxy.FileUtil;
 
 import java.io.File;
@@ -22,11 +22,13 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
     public static final int WAIT_FOR_SET_DATASOURCE = 1;
     public static final int WAIT_FOR_BUFFERING = 2;
     public static final int WAIT_FOR_PREPARE = 3;
+    static final boolean DEBUG = true;
 
-    @IntDef({NONE,WAIT_FOR_SET_DATASOURCE,WAIT_FOR_BUFFERING,WAIT_FOR_PREPARE})
-    @interface State{
+    @IntDef({NONE, WAIT_FOR_SET_DATASOURCE, WAIT_FOR_BUFFERING, WAIT_FOR_PREPARE})
+    @interface State {
 
     }
+
     StrongerMediaPlayer mMediaPlayer;
     private boolean mIsPrepared;
     private boolean mIsReleased;
@@ -45,11 +47,12 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
     FileDownloader mFileDownloader;
 
     /**
-     *  only for LOCAL CACHE MODE
+     * only for LOCAL CACHE MODE
      */
-    @State int mStateWithLocalCache;
+    @State
+    int mStateWithLocalCache;
     /**
-     *  only for LOCAL CACHE MODE
+     * only for LOCAL CACHE MODE
      */
     long latestProgressOnPrepare = 0;
     private int mSavedPosition;
@@ -57,91 +60,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 
     @Override
     public void setDataSource(Context context, String uri) {
-        if (mMediaPlayer == null) {
-            mMediaPlayer = new StrongerMediaPlayer(new MediaPlayer.OnErrorListener() {
-                @Override
-                public boolean onError(MediaPlayer mp, int what, int extra) {
-                    MediaPlayerEx.UnknownMediaPlayerException unknownMediaPlayerException = new UnknownMediaPlayerException();
-                    unknownMediaPlayerException.what = what;
-                    unknownMediaPlayerException.extra = extra;
-                    return true;
-                }
-            });
-            //use MediaMonitor to update position change
-            mMediaMonitor = new MediaMonitor();
-            mMediaMonitor.task = new Runnable() {
-                @Override
-                public void run() {
-                    if (mMediaPlayer != null) {
-                        mSavedPosition = mMediaPlayer.getCurrentPosition();
-                        int duration = mMediaPlayer.getDuration();
-                        for (IEventListener listener : getListeners(OnPositionUpdateListener.class)) {
-                            ((OnPositionUpdateListener)listener).onPositionUpdate(mSavedPosition, duration);
-                        }
-                    }
-                }
-            };
-            mMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
-                @Override
-                public void onSeekComplete(MediaPlayer mp) {
-                    for (IEventListener listener : getListeners(OnSeekCompleteListener.class)) {
-                        ((OnSeekCompleteListener)listener).onSeekComplete(getCurrentPosition());
-                    }
-                }
-            });
-            mMediaPlayer.setOnBufferingUpdateListener(new MediaPlayer.OnBufferingUpdateListener() {
-                @Override
-                public void onBufferingUpdate(MediaPlayer mp, int percent) {
-                    //fix bug: BufferingUpdate still can been triggered when mediaplayer is playing,
-                    if (isPlaying()) {
-                        percent = 100;
-                    }
-                    for (IEventListener listener : getListeners(OnBufferingListener.class)) {
-                        ((OnBufferingListener)listener).onBuffering(percent);
-                    }
-                }
-            });
-            mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                @Override
-                public void onCompletion(MediaPlayer mp) {
-
-                     if(mFileDownloader!=null){
-                         latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
-                         if(!mFileDownloader.isFinished()&& mSavedPosition < getDuration() -1000) {
-                             mStateWithLocalCache = WAIT_FOR_BUFFERING;
-                         }
-                     }
-//                    isVideoBuffered().
-//                            subscribe(new SubscriberBase<Boolean>() {
-//                                @Override
-//                                public void doOnNext(Boolean isVideoBuffered) {
-//                                    if (!isVideoBuffered
-//                                            || mSavedPosition < getMediaController().getDuration() - 1500) {
-//                                        //文件提前结束
-//                                        waitToReprepare();
-//                                        return;
-//                                    } else {
-//                                        if (AppConfig.DEBUG) {
-//                                            Log.e(TAG, "set mIsVideoComplete = true");
-//                                        }
-//                                        mIsVideoComplete = true;
-//                                        if (mFavSectionWrapper != null) {
-//                                            mFavSectionWrapper.setVisibility(View.VISIBLE);
-//                                        }
-//                                        isPlayingBeforeTracking = false;
-//                                        if(mVideoControllerView!=null
-//                                                &&mVideoControllerView.mVideoControllerRepeatSwitch.isChecked()){
-//                                            startOrPauseVideo();
-//                                        }
-//                                    }
-//                                }
-//                            });
-                    for (IEventListener listener : getListeners(OnPlayCompleteListener.class)) {
-                        ((OnPlayCompleteListener)listener).onPlayComplete(SysMediaPlayerImpl.this);
-                    }
-                }
-            });
-        }
+        initMediaPlayer();
         try {
             if (getCacheMode() == CACHE_MODE_PROXY) {
                 throw new IllegalAccessError("no implementation");
@@ -157,33 +76,51 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 mFileDownloader.setEventListener(new FileDownloader.EventListener() {
                     @Override
                     public void onProgress(long progress, long length) {
+                        if(DEBUG) {
+                            Log.e("mpex", "progress changed:" + progress);
+                        }
                         //when  buffer limit reached
-                        if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE
-                                || mStateWithLocalCache==WAIT_FOR_PREPARE
-                                || mStateWithLocalCache==WAIT_FOR_BUFFERING) {
+                        if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE
+                                || mStateWithLocalCache == WAIT_FOR_PREPARE
+                                || mStateWithLocalCache == WAIT_FOR_BUFFERING) {
+                            if(DEBUG) {
+                                Log.e("mpex","mStateWithLocalCache :"+mStateWithLocalCache);
+                            }
                             long prepareBufferSize = (long) Math.max(getMinBufferBlockSize(), getPrepareBufferRate() * length);
-                            if (progress-latestProgressOnPrepare >= prepareBufferSize
-                                    || (mFileDownloader!=null&&mFileDownloader.getDownloadedFile().length()==length)) {
+                            if (progress - latestProgressOnPrepare >= prepareBufferSize
+                                    || (mFileDownloader != null && mFileDownloader.getDownloadedFile().length() == length)) {
+                                if(DEBUG) {
+                                    Log.e("mpex", "current downloaded length:" + progress);
+                                }
                                 //when the file has been downloaded,or reached the buffer limit,excute prepare or setDataSource operation
-                                if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE
-                                        || mStateWithLocalCache==WAIT_FOR_PREPARE) {
+                                if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE
+                                        || mStateWithLocalCache == WAIT_FOR_PREPARE) {
+                                    if(DEBUG) {
+                                        Log.e("mpex", "call setDataSource ");
+                                    }
                                     try {
                                         mMediaPlayer.setDataSource(mLocalUri);
                                     } catch (IOException e) {
+                                        if(DEBUG) {
+                                            Log.e("mpex", " error on setDataSource:" + e.getMessage());
+                                        }
                                         for (IEventListener listener : getListeners(OnErrorListener.class)) {
                                             ((OnErrorListener) listener).onError(e);
                                         }
                                         return;
                                     }
                                 }
-                                if(mStateWithLocalCache==WAIT_FOR_PREPARE
-                                        ||mStateWithLocalCache==WAIT_FOR_BUFFERING){
+                                if (mStateWithLocalCache == WAIT_FOR_PREPARE
+                                        || mStateWithLocalCache == WAIT_FOR_BUFFERING) {
+                                    if(DEBUG) {
+                                        Log.e("mpex", "call prepareAsync ");
+                                    }
                                     prepareAsync();
                                 }
                                 mStateWithLocalCache = NONE;
-                            }else {
+                            } else {
                                 for (IEventListener listener : getListeners(OnBufferingListener.class)) {
-                                    ((OnBufferingListener)listener).onBuffering((int)((progress-latestProgressOnPrepare)*1f / prepareBufferSize)*100);
+                                    ((OnBufferingListener) listener).onBuffering((int) ((progress - latestProgressOnPrepare) * 1f / prepareBufferSize) * 100);
                                 }
                             }
                         }
@@ -194,53 +131,116 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                     @Override
                     public void onSuccess(File pFile) {
                         for (IEventListener listener : getListeners(OnBufferingListener.class)) {
-                            ((OnBufferingListener)listener).onBuffering(100);
+                            ((OnBufferingListener) listener).onBuffering(100);
                         }
                     }
 
                     @Override
                     public void onError(Throwable t) {
                         for (IEventListener listener : getListeners(OnErrorListener.class)) {
-                            ((OnErrorListener)listener).onError(t);
+                            ((OnErrorListener) listener).onError(t);
                         }
                     }
                 });
                 mFileDownloader.start();
-            }else {
+            } else {
                 mMediaPlayer.setDataSource(uri);
             }
         } catch (IOException e) {
             for (IEventListener listener : getListeners(OnErrorListener.class)) {
-                ((OnErrorListener)listener).onError(e);
+                ((OnErrorListener) listener).onError(e);
             }
+        }
+    }
+
+    private void initMediaPlayer() {
+        if (mMediaPlayer == null) {
+            mMediaPlayer = new StrongerMediaPlayer(new MediaPlayer.OnErrorListener() {
+                @Override
+                public boolean onError(MediaPlayer mp, int what, int extra) {
+                    UnknownMediaPlayerException unknownMediaPlayerException = new UnknownMediaPlayerException();
+                    unknownMediaPlayerException.what = what;
+                    unknownMediaPlayerException.extra = extra;
+                    return true;
+                }
+            });
+            //use MediaMonitor to update position change
+            mMediaMonitor = new MediaMonitor();
+            mMediaMonitor.task = new Runnable() {
+                @Override
+                public void run() {
+                    if (mMediaPlayer != null) {
+                        mSavedPosition = mMediaPlayer.getCurrentPosition();
+                        int duration = mMediaPlayer.getDuration();
+                        for (IEventListener listener : getListeners(OnPositionUpdateListener.class)) {
+                            ((OnPositionUpdateListener) listener).onPositionUpdate(mSavedPosition, duration);
+                        }
+                    }
+                }
+            };
+            mMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                @Override
+                public void onSeekComplete(MediaPlayer mp) {
+                    for (IEventListener listener : getListeners(OnSeekCompleteListener.class)) {
+                        ((OnSeekCompleteListener) listener).onSeekComplete(getCurrentPosition());
+                    }
+                }
+            });
+            mMediaPlayer.setOnBufferingUpdateListener(new MediaPlayer.OnBufferingUpdateListener() {
+                @Override
+                public void onBufferingUpdate(MediaPlayer mp, int percent) {
+                    //fix bug: BufferingUpdate still can been triggered when mediaplayer is playing,
+                    if (isPlaying()) {
+                        percent = 100;
+                    }
+                    for (IEventListener listener : getListeners(OnBufferingListener.class)) {
+                        ((OnBufferingListener) listener).onBuffering(percent);
+                    }
+                }
+            });
+            mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                @Override
+                public void onCompletion(MediaPlayer mp) {
+
+                    if (mFileDownloader != null) {
+                        latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
+                        if (!mFileDownloader.isFinished() && mSavedPosition < getDuration() - 1000) {
+                            mStateWithLocalCache = WAIT_FOR_BUFFERING;
+                        }
+                    }
+                    for (IEventListener listener : getListeners(OnPlayCompleteListener.class)) {
+                        ((OnPlayCompleteListener) listener).onPlayComplete(SysMediaPlayerImpl.this);
+                    }
+                }
+            });
         }
     }
 
     @Override
     public void prepare() {
-        if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE){
+        if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE) {
             throw new IllegalStateException("must wait for the local file to be buffered completely");
         }
         try {
             mMediaPlayer.prepare();
             mIsPrepared = true;
             for (IEventListener listener : getListeners(OnPreparedListener.class)) {
-                ((OnPreparedListener)listener).onPrepared();
+                ((OnPreparedListener) listener).onPrepared();
             }
         } catch (IOException e) {
             for (IEventListener listener : getListeners(OnErrorListener.class)) {
-                ((OnErrorListener)listener).onError(e);
+                ((OnErrorListener) listener).onError(e);
             }
         }
     }
 
     @Override
     public void prepareAsync() {
-        if(mStateWithLocalCache==WAIT_FOR_SET_DATASOURCE){
+        if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE) {
             mStateWithLocalCache = WAIT_FOR_PREPARE;
             return;
         }
-        if(mMediaPlayer==null){
+        if (mMediaPlayer == null) {
             throw new IllegalStateException("must call setDatasurce firstly");
         }
         mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -248,7 +248,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             public void onPrepared(MediaPlayer mp) {
                 mIsPrepared = true;
                 for (IEventListener listener : getListeners(OnPreparedListener.class)) {
-                    ((OnPreparedListener)listener).onPrepared();
+                    ((OnPreparedListener) listener).onPrepared();
                 }
             }
         });
@@ -264,7 +264,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 mMediaMonitor.start();
             }
             for (IEventListener listener : getListeners(OnStartListener.class)) {
-                ((OnStartListener)listener).onStart();
+                ((OnStartListener) listener).onStart();
             }
         }
     }
@@ -292,7 +292,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 mMediaMonitor.pause();
             }
             for (IEventListener listener : getListeners(OnPauseListener.class)) {
-                ((OnPauseListener)listener).onPause();
+                ((OnPauseListener) listener).onPause();
             }
         }
     }
@@ -308,7 +308,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 mMediaMonitor.pause();
             }
             for (IEventListener listener : getListeners(OnStopListener.class)) {
-                ((OnStopListener)listener).onStop();
+                ((OnStopListener) listener).onStop();
             }
         }
     }
@@ -324,7 +324,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                 mMediaMonitor.pause();
             }
             for (IEventListener listener : getListeners(OnResetListener.class)) {
-                ((OnResetListener)listener).onReset();
+                ((OnResetListener) listener).onReset();
             }
         }
     }
@@ -339,7 +339,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             mMediaPlayer = null;
             mIsReleased = true;
             for (IEventListener listener : getListeners(OnReleaseListener.class)) {
-                ((OnReleaseListener)listener).onRelease();
+                ((OnReleaseListener) listener).onRelease();
             }
         }
     }

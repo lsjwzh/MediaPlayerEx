@@ -24,7 +24,7 @@ public abstract class MediaPlayerEx {
     public static final int CACHE_MODE_LOCAL = 1;
     public static final int CACHE_MODE_PROXY = 2;
     public static final float DEFAULT_PREPARE_BUFFER_RATE = 0.1f;
-    public static final int DEFAULT_MIN_PREPARE_BUFFER_SIZE = 50 * 1024;
+    public static final int DEFAULT_MIN_PREPARE_BUFFER_SIZE = 100 * 1024;//100k
 
 
     @IntDef({CACHE_MODE_NONE, CACHE_MODE_LOCAL, CACHE_MODE_PROXY})
