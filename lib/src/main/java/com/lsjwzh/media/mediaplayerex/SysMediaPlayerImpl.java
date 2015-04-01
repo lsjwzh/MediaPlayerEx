@@ -56,6 +56,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
      */
     long latestProgressOnPrepare = 0;
     private int mSavedPosition;
+    private boolean mErrorHappenedOnDownloading;
 
 
     @Override
@@ -86,7 +87,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
                             if(DEBUG) {
                                 Log.e("mpex","mStateWithLocalCache :"+mStateWithLocalCache);
                             }
-                            long prepareBufferSize = (long) Math.max(getMinBufferBlockSize(), getPrepareBufferRate() * length);
+                            long prepareBufferSize = (long) Math.min(getMinBufferBlockSize(), getPrepareBufferRate() * length);
                             if (progress - latestProgressOnPrepare >= prepareBufferSize
                                     || (mFileDownloader != null && mFileDownloader.getDownloadedFile().length() == length)) {
                                 if(DEBUG) {
@@ -137,6 +138,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 
                     @Override
                     public void onError(Throwable t) {
+                        mErrorHappenedOnDownloading = true;
                         for (IEventListener listener : getListeners(OnErrorListener.class)) {
                             ((OnErrorListener) listener).onError(t);
                         }
@@ -201,11 +203,11 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
             mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
                 @Override
                 public void onCompletion(MediaPlayer mp) {
-
                     if (mFileDownloader != null) {
                         latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
-                        if (!mFileDownloader.isFinished() && mSavedPosition < getDuration() - 1000) {
+                        if (!mErrorHappenedOnDownloading && !mFileDownloader.isFinished() && mSavedPosition < getDuration() - 1000) {
                             mStateWithLocalCache = WAIT_FOR_BUFFERING;
+                            return;
                         }
                     }
                     for (IEventListener listener : getListeners(OnPlayCompleteListener.class)) {
