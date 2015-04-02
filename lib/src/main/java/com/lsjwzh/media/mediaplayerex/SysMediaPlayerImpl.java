@@ -248,6 +248,9 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
         mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
+                if(mSavedPosition>0){
+                    mMediaPlayer.seekTo(mSavedPosition);
+                }
                 mIsPrepared = true;
                 for (IEventListener listener : getListeners(OnPreparedListener.class)) {
                     ((OnPreparedListener) listener).onPrepared();
@@ -317,6 +320,7 @@ public class SysMediaPlayerImpl extends MediaPlayerEx {
 
     @Override
     public void reset() {
+        mSavedPosition = 0;
         if (!mIsStarted) {
             return;
         }
