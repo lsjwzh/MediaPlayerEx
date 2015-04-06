@@ -20,17 +20,17 @@ import java.util.List;
  * Created by panwenye on 14-8-19.
  */
 public abstract class MediaPlayerEx {
-    public static final int CACHE_MODE_NONE = 0;
-    public static final int CACHE_MODE_LOCAL = 1;
-    public static final int CACHE_MODE_PROXY = 2;
+//    public static final int CACHE_MODE_NONE = 0;
+//    public static final int CACHE_MODE_LOCAL = 1;
+//    public static final int CACHE_MODE_PROXY = 2;
     public static final float DEFAULT_PREPARE_BUFFER_RATE = 0.1f;
     public static final int DEFAULT_MIN_PREPARE_BUFFER_SIZE = 100 * 1024;//100k
 
 
-    @IntDef({CACHE_MODE_NONE, CACHE_MODE_LOCAL, CACHE_MODE_PROXY})
-    public @interface CacheMode {
-
-    }
+//    @IntDef({CACHE_MODE_NONE, CACHE_MODE_LOCAL, CACHE_MODE_PROXY})
+//    public @interface CacheMode {
+//
+//    }
 
     public class UnknownMediaPlayerException extends Exception {
         public int what;
@@ -100,8 +100,8 @@ public abstract class MediaPlayerEx {
 
 
     final Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>> mListenersMap = new Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>>();
-    @CacheMode
-    int mCacheMode = 0;
+//    @CacheMode
+//    int mCacheMode = 0;
     String mCacheDir = Environment.getExternalStorageDirectory()+"/mpex";
 
 
@@ -163,15 +163,15 @@ public abstract class MediaPlayerEx {
 
     public abstract void setAudioStreamType(int streamMusic);
 
-    public void setCacheMode(@CacheMode int pCacheMode) {
-        mCacheMode = pCacheMode;
-    }
+//    public void setCacheMode(@CacheMode int pCacheMode) {
+//        mCacheMode = pCacheMode;
+//    }
 
-    public
-    @CacheMode
-    int getCacheMode() {
-        return mCacheMode;
-    }
+//    public
+//    @CacheMode
+//    int getCacheMode() {
+//        return mCacheMode;
+//    }
 
     public String getCacheDir() {
         return mCacheDir;

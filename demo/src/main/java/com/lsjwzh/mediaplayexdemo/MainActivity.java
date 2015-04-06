@@ -9,7 +9,6 @@ import android.view.Surface;
 import android.view.TextureView;
 
 import com.lsjwzh.media.mediaplayerex.MediaPlayerEx;
-import com.lsjwzh.media.mediaplayerex.SysMediaPlayerImpl;
 
 
 public class MainActivity extends ActionBarActivity {
