@@ -16,7 +16,7 @@ import java.net.SocketAddress;
  * @author hellogv
  */
 public class HttpGetProxyUtils {
-    final static public String TAG = "HttpGetProxy";
+    final static public String TAG = "HttpGetProxyUtils";
 
     /**
      * 收发Media Player请求的Socket

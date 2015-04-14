@@ -5,7 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
-import android.support.annotation.IntDef;
+import android.util.Log;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -49,6 +49,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
                 if (msg.what == MSG_START) {
                     try {
                         mIsPlaying = true;
+                        Log.e("mpex","call real mp start");
                         StrongerMediaPlayer.super.start();
                     } catch (Exception e) {
                         onError();
@@ -108,7 +109,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
             public boolean onError(MediaPlayer mediaPlayer, int i, int i2) {
                 mIsPreparing = false;
                 if(getErrHandler()!=null){
-                    getErrHandler().onError(mediaPlayer,i,i2);
+                    return getErrHandler().onError(mediaPlayer,i,i2);
                 }
                 return false;
             }

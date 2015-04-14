@@ -222,21 +222,20 @@ public class FileDownloader {
             }
             mediaLength += readedSize;//文件总长度=本次请求长度+已经下载长度
 
-            byte buf[] = new byte[1024*2];//一次读取2k数据
+            byte buf[] = new byte[1024*10];//一次读取10k数据
             int tmpReadSize = 0;
             int readCountForProgressNotofy = 0;
 
             onProgress(readedSize, mediaLength);
 
             while ((tmpReadSize = is.read(buf)) != -1 && !mIsStop.get()) {
-                readCountForProgressNotofy++;
                 out.write(buf, 0, tmpReadSize);
                 readedSize += tmpReadSize;
-                //每读取十次（20k），发送一次进度通知
+                //每读取十次（100k），发送一次进度通知
                 if(readCountForProgressNotofy>=10) {
                     readCountForProgressNotofy = 0;
                     onProgress(readedSize, mediaLength);
-//                    SystemClock.sleep(2000);//mock slow network
+                    SystemClock.sleep(2000);//mock slow network
                 }
             }
         } catch (OutOfMemoryError outOfMemoryError) {

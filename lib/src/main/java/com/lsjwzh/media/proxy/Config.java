@@ -8,7 +8,7 @@ package com.lsjwzh.media.proxy;
 public class Config {
 
     final static public String LOCAL_IP_ADDRESS = "127.0.0.1";
-    final static public int HTTP_PORT = 80;
+    final static public int HTTP_PORT = 8109;
     final static public String HTTP_BODY_END = "\r\n\r\n";
     final static public String HTTP_RESPONSE_BEGIN = "HTTP/";
     final static public String HTTP_REQUEST_BEGIN = "GET ";

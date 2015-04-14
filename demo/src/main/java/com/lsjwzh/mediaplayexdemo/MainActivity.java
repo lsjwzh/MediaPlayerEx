@@ -1,13 +1,16 @@
 package com.lsjwzh.mediaplayexdemo;
 
 import android.graphics.SurfaceTexture;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
 import android.view.TextureView;
+import android.view.View;
 
+import com.lsjwzh.media.mediaplayerex.DefaultMediaPlayerImpl;
 import com.lsjwzh.media.mediaplayerex.MediaPlayerEx;
 
 
@@ -20,22 +23,23 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mTextureView = (TextureView)findViewById(R.id.video_view);
+        mTextureView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mMediaPlayerEx != null) {
+                    if (mMediaPlayerEx.isPlaying()) {
+                        mMediaPlayerEx.pause();
+                    } else {
+                        mMediaPlayerEx.start();
+                    }
+                }
+            }
+        });
         mTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                Surface s= new Surface(surface);
-                mMediaPlayerEx = new SysMediaPlayerImpl();
-                mMediaPlayerEx.setCacheMode(MediaPlayerEx.CACHE_MODE_LOCAL);
-                mMediaPlayerEx.setDataSource(MainActivity.this,"http://mofunsky-video.qiniudn.com/126/314/20150324094118997736001676.mp4");
-                mMediaPlayerEx.setDisplay(s);
-                mMediaPlayerEx.registerListener(MediaPlayerEx.OnPreparedListener.class,new MediaPlayerEx.OnPreparedListener(){
-
-                    @Override
-                    public void onPrepared() {
-                        mMediaPlayerEx.start();
-                    }
-                });
-                mMediaPlayerEx.prepareAsync();
+                Surface s = new Surface(surface);
+                initMpex(s);
             }
 
             @Override
@@ -53,7 +57,31 @@ public class MainActivity extends ActionBarActivity {
 
             }
         });
+    }
 
+    private void initMpex(final Surface s) {
+        if(mMediaPlayerEx!=null){
+            mMediaPlayerEx.clearListeners();
+            mMediaPlayerEx.release();
+        }
+        mMediaPlayerEx = new DefaultMediaPlayerImpl();
+        mMediaPlayerEx.setDataSource(MainActivity.this, "http://mofunsky-video.qiniudn.com/126/314/20150324094118997736001676.mp4");
+        mMediaPlayerEx.setDisplay(s);
+        mMediaPlayerEx.registerListener(MediaPlayerEx.OnPreparedListener.class, new MediaPlayerEx.OnPreparedListener() {
+			@Override
+			public void onPrepared() {
+				Log.e("mpex", " onPrepared then start");
+				mMediaPlayerEx.start();
+			}
+		});
+        mMediaPlayerEx.registerListener(MediaPlayerEx.OnErrorListener.class,new MediaPlayerEx.OnErrorListener(){
+
+			@Override
+			public void onError(Throwable e) {
+                Log.e("mpex", " call onError listener");
+            }
+		});
+        mMediaPlayerEx.prepareAsync();
     }
 
 

@@ -39,7 +39,6 @@ public class NetworkUtil {
                 }
             }
         } catch (Exception e) {
-            // TODO: handle exception
             Log.e("error", e.toString());
         }
         return false;

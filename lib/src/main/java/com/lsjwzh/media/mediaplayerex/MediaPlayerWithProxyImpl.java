@@ -4,11 +4,9 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.support.annotation.IntDef;
-import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
-import com.lsjwzh.media.download.FileDownloader;
 import com.lsjwzh.media.proxy.FileUtil;
 
 import java.io.File;
@@ -38,25 +36,10 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
      */
     private boolean mHasStarted;
     /**
-     * local url,only for LOCAL CACHE MODE
+     * proxy url
      */
-    String mLocalUri;
-    /**
-     * only for LOCAL CACHE MODE
-     */
-    FileDownloader mFileDownloader;
+    String mProxyUri;
 
-    /**
-     * only for LOCAL CACHE MODE
-     */
-    @State
-    int mStateWithLocalCache;
-    /**
-     * only for LOCAL CACHE MODE
-     */
-    long latestProgressOnPrepare = 0;
-    private int mSavedPosition;
-    private boolean mErrorHappenedOnDownloading;
 
 
     @Override
@@ -64,85 +47,8 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
         initMediaPlayer();
         try {
             if (uri.startsWith("http:")) {
-                mStateWithLocalCache = WAIT_FOR_SET_DATASOURCE;
                 //if the cache mode is local,we must transfer remote uri to local uri
-                mLocalUri = getCacheDir() + File.separator + FileUtil.extractFileNameFromURI(uri);
-                //if cachemode not NONE, start buffer
-                if (mFileDownloader != null) {
-                    mFileDownloader.stop();
-                }
-                mFileDownloader = FileDownloader.get(uri, mLocalUri);
-                mFileDownloader.setEventListener(new FileDownloader.EventListener() {
-                    @Override
-                    public void onProgress(long progress, long length) {
-                        if(DEBUG) {
-                            Log.e("mpex", "progress changed:" + progress);
-                        }
-                        //when  buffer limit reached
-                        if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE
-                                || mStateWithLocalCache == WAIT_FOR_PREPARE
-                                || mStateWithLocalCache == WAIT_FOR_BUFFERING) {
-                            if(DEBUG) {
-                                Log.e("mpex","mStateWithLocalCache :"+mStateWithLocalCache);
-                            }
-                            long prepareBufferSize = (long) Math.min(getMinBufferBlockSize(), getPrepareBufferRate() * length);
-                            if (progress - latestProgressOnPrepare >= prepareBufferSize
-                                    || (mFileDownloader != null && mFileDownloader.getDownloadedFile().length() == length)) {
-                                if(DEBUG) {
-                                    Log.e("mpex", "current downloaded length:" + progress);
-                                }
-                                //when the file has been downloaded,or reached the buffer limit,excute prepare or setDataSource operation
-                                if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE
-                                        || mStateWithLocalCache == WAIT_FOR_PREPARE) {
-                                    if(DEBUG) {
-                                        Log.e("mpex", "call setDataSource ");
-                                    }
-                                    try {
-                                        mMediaPlayer.setDataSource(mLocalUri);
-                                    } catch (IOException e) {
-                                        if(DEBUG) {
-                                            Log.e("mpex", " error on setDataSource:" + e.getMessage());
-                                        }
-                                        for (IEventListener listener : getListeners(OnErrorListener.class)) {
-                                            ((OnErrorListener) listener).onError(e);
-                                        }
-                                        return;
-                                    }
-                                }
-                                if (mStateWithLocalCache == WAIT_FOR_PREPARE
-                                        || mStateWithLocalCache == WAIT_FOR_BUFFERING) {
-                                    if(DEBUG) {
-                                        Log.e("mpex", "call prepareAsync ");
-                                    }
-                                    prepareAsync();
-                                }
-                                mStateWithLocalCache = NONE;
-                            } else {
-                                for (IEventListener listener : getListeners(OnBufferingListener.class)) {
-                                    ((OnBufferingListener) listener).onBuffering((int) ((progress - latestProgressOnPrepare) * 1f / prepareBufferSize) * 100);
-                                }
-                            }
-                        }
-
-
-                    }
-
-                    @Override
-                    public void onSuccess(File pFile) {
-                        for (IEventListener listener : getListeners(OnBufferingListener.class)) {
-                            ((OnBufferingListener) listener).onBuffering(100);
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        mErrorHappenedOnDownloading = true;
-                        for (IEventListener listener : getListeners(OnErrorListener.class)) {
-                            ((OnErrorListener) listener).onError(t);
-                        }
-                    }
-                });
-                mFileDownloader.start();
+                mProxyUri = getCacheDir() + File.separator + FileUtil.extractFileNameFromURI(uri);
             } else {
                 mMediaPlayer.setDataSource(uri);
             }
@@ -170,10 +76,9 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
                 @Override
                 public void run() {
                     if (mMediaPlayer != null) {
-                        mSavedPosition = mMediaPlayer.getCurrentPosition();
                         int duration = mMediaPlayer.getDuration();
                         for (IEventListener listener : getListeners(OnPositionUpdateListener.class)) {
-                            ((OnPositionUpdateListener) listener).onPositionUpdate(mSavedPosition, duration);
+                            ((OnPositionUpdateListener) listener).onPositionUpdate(mMediaPlayer.getCurrentPosition(), duration);
                         }
                     }
                 }
@@ -201,13 +106,6 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
             mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
                 @Override
                 public void onCompletion(MediaPlayer mp) {
-                    if (mFileDownloader != null) {
-                        latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
-                        if (!mErrorHappenedOnDownloading && !mFileDownloader.isFinished() && mSavedPosition < getDuration() - 1000) {
-                            mStateWithLocalCache = WAIT_FOR_BUFFERING;
-                            return;
-                        }
-                    }
                     for (IEventListener listener : getListeners(OnPlayCompleteListener.class)) {
                         ((OnPlayCompleteListener) listener).onPlayComplete(MediaPlayerWithProxyImpl.this);
                     }
@@ -218,9 +116,6 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
 
     @Override
     public void prepare() {
-        if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE) {
-            throw new IllegalStateException("must wait for the local file to be buffered completely");
-        }
         try {
             mMediaPlayer.prepare();
             mHasPrepared = true;
@@ -236,10 +131,6 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
 
     @Override
     public void prepareAsync() {
-        if (mStateWithLocalCache == WAIT_FOR_SET_DATASOURCE) {
-            mStateWithLocalCache = WAIT_FOR_PREPARE;
-            return;
-        }
         if (mMediaPlayer == null) {
             throw new IllegalStateException("must call setDatasurce firstly");
         }

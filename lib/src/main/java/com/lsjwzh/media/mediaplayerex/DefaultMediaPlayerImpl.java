@@ -23,7 +23,6 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
     public static final int WAIT_FOR_BUFFERING = 2;
     public static final int WAIT_FOR_PREPARE = 3;
     static final boolean DEBUG = true;
-
     @IntDef({NONE, WAIT_FOR_SET_DATASOURCE, WAIT_FOR_BUFFERING, WAIT_FOR_PREPARE})
     @interface State {
 
@@ -32,6 +31,13 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
     StrongerMediaPlayer mMediaPlayer;
     private boolean mHasPrepared;
     private boolean mHasReleased;
+    private boolean mMPErrorHappened;
+
+
+    private Context mContext;
+    private SurfaceHolder mSurfaceHolder;
+    private Surface mSurface;
+
     MediaMonitor mMediaMonitor;
     /**
      * seekTo will cause a error if mediaplayer have not started
@@ -61,6 +67,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
 
     @Override
     public void setDataSource(Context context, String uri) {
+        mContext = context;
         initMediaPlayer();
         try {
             if (isRemoteMedia(uri)) {
@@ -85,7 +92,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                             if (DEBUG) {
                                 Log.e("mpex", "mStateWithLocalCache :" + mStateWithLocalCache);
                             }
-                            long prepareBufferSize = (long) Math.min(getMinBufferBlockSize(), getPrepareBufferRate() * length);
+                            long prepareBufferSize = (long) Math.max(getMinBufferBlockSize(), getPrepareBufferRate() * length);
                             if (progress - latestProgressOnPrepare >= prepareBufferSize
                                     || (mFileDownloader != null && mFileDownloader.getDownloadedFile().length() == length)) {
                                 if (DEBUG) {
@@ -163,14 +170,50 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
         return uri.startsWith("http:") || uri.startsWith("https:");
     }
 
+    private void waitreinit(){
+        if(mMediaPlayer!=null){
+            mMediaPlayer.setOnCompletionListener(null);
+            mMediaPlayer.setOnSeekCompleteListener(null);
+            mMediaPlayer.setOnBufferingUpdateListener(null);
+            mMediaPlayer.release();
+            mMediaPlayer = null;
+        }
+        if(mMediaMonitor!=null){
+            mMediaMonitor.quit();
+            mMediaMonitor = null;
+        }
+        boolean isPlayingBeforeReinit = mHasStarted;
+        setDataSource(mContext, mLocalUri);
+        if(mSurface!=null){
+            setDisplay(mSurface);
+        }else if(mSurfaceHolder!=null){
+            setDisplay(mSurfaceHolder);
+        }
+        mHasStarted = isPlayingBeforeReinit;
+        mStateWithLocalCache = WAIT_FOR_BUFFERING;
+    }
+
     private void initMediaPlayer() {
         if (mMediaPlayer == null) {
+            mHasReleased = false;
+            mHasStarted = false;
+            mHasPrepared = false;
+            mMPErrorHappened = false;
             mMediaPlayer = new StrongerMediaPlayer(new MediaPlayer.OnErrorListener() {
                 @Override
                 public boolean onError(MediaPlayer mp, int what, int extra) {
+                    Log.e("mpex","what:"+what+",extra:"+extra +"isPrepared:"+isPrepared());
+                    if(isPrepared()){
+                        waitreinit();
+                        return true;
+                    }
+                    mMPErrorHappened = true;
                     UnknownMediaPlayerException unknownMediaPlayerException = new UnknownMediaPlayerException();
                     unknownMediaPlayerException.what = what;
                     unknownMediaPlayerException.extra = extra;
+                    for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                        ((OnErrorListener) listener).onError(unknownMediaPlayerException);
+                    }
                     return true;
                 }
             });
@@ -179,50 +222,20 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             mMediaMonitor.task = new Runnable() {
                 @Override
                 public void run() {
-                    if (mMediaPlayer != null) {
+                    if (mMediaPlayer != null && isPrepared() && !mMPErrorHappened) {
                         mSavedPosition = mMediaPlayer.getCurrentPosition();
                         int duration = mMediaPlayer.getDuration();
+                        if(DEBUG){
+                            Log.e("mpex","mSavedPosition:"+mSavedPosition);
+                        }
                         for (IEventListener listener : getListeners(OnPositionUpdateListener.class)) {
                             ((OnPositionUpdateListener) listener).onPositionUpdate(mSavedPosition, duration);
                         }
                     }
                 }
             };
-            mMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
-                @Override
-                public void onSeekComplete(MediaPlayer mp) {
-                    for (IEventListener listener : getListeners(OnSeekCompleteListener.class)) {
-                        ((OnSeekCompleteListener) listener).onSeekComplete(getCurrentPosition());
-                    }
-                }
-            });
-            mMediaPlayer.setOnBufferingUpdateListener(new MediaPlayer.OnBufferingUpdateListener() {
-                @Override
-                public void onBufferingUpdate(MediaPlayer mp, int percent) {
-                    //fix bug: BufferingUpdate still can been triggered when mediaplayer is playing,
-                    if (isPlaying()) {
-                        percent = 100;
-                    }
-                    for (IEventListener listener : getListeners(OnBufferingListener.class)) {
-                        ((OnBufferingListener) listener).onBuffering(percent);
-                    }
-                }
-            });
-            mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                @Override
-                public void onCompletion(MediaPlayer mp) {
-                    if (mFileDownloader != null) {
-                        latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
-                        if (!mErrorHappenedOnDownloading && !mFileDownloader.isFinished() && mSavedPosition < getDuration() - 1000) {
-                            mStateWithLocalCache = WAIT_FOR_BUFFERING;
-                            return;
-                        }
-                    }
-                    for (IEventListener listener : getListeners(OnPlayCompleteListener.class)) {
-                        ((OnPlayCompleteListener) listener).onPlayComplete(DefaultMediaPlayerImpl.this);
-                    }
-                }
-            });
+
+
         }
     }
 
@@ -234,6 +247,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
         try {
             mMediaPlayer.prepare();
             mHasPrepared = true;
+            latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
             for (IEventListener listener : getListeners(OnPreparedListener.class)) {
                 ((OnPreparedListener) listener).onPrepared();
             }
@@ -256,13 +270,38 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
         mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
+                if(DEBUG){
+                    Log.e("mpex", "prepareAsync success");
+                }
                 mHasPrepared = true;
+                if(mHasStarted){
+                    if(DEBUG){
+                        Log.e("mpex", "seek to : "+mSavedPosition);
+                    }
+                    mMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                        @Override
+                        public void onSeekComplete(MediaPlayer mp) {
+                            mMediaPlayer.start();
+                        }
+                    });
+                    mMediaPlayer.seekTo(mSavedPosition);
+                    return;
+                }
+                latestProgressOnPrepare = mFileDownloader.getDownloadedFile().length();
                 for (IEventListener listener : getListeners(OnPreparedListener.class)) {
+                    if(DEBUG){
+                        Log.e("mpex", "call onPrepared");
+                    }
                     ((OnPreparedListener) listener).onPrepared();
                 }
             }
         });
-        mMediaPlayer.prepareAsync();
+        try {
+            mMediaPlayer.prepareAsync();
+        }catch (Throwable e){
+            e.printStackTrace();
+            Log.e("mpex", "error on prepareAsync ");
+        }
     }
 
     @Override
@@ -396,6 +435,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
 
     @Override
     public void setDisplay(SurfaceHolder holder) {
+        mSurfaceHolder = holder;
         if (mMediaPlayer != null) {
             try {
                 mMediaPlayer.setDisplay(holder);
@@ -409,6 +449,8 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
     @TargetApi(14)
     @Override
     public void setDisplay(Surface pSurface) {
+        mSurface = pSurface;
+
         if (mMediaPlayer != null) {
             try {
                 mMediaPlayer.setSurface(pSurface);
