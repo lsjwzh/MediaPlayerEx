@@ -2,7 +2,6 @@ package com.lsjwzh.media.download;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -99,6 +98,9 @@ public class FileDownloader {
     EventListener mEventListener;
     Handler mHandler = new Handler(Looper.getMainLooper());
 
+    private FileOutputStream mOut;
+
+
     private FileDownloader(String remoteUrl, String localPath) {
         mRemoteUrl = remoteUrl;
         mLocalPath = localPath;
@@ -138,6 +140,19 @@ public class FileDownloader {
         return new File(mLocalPath);
     }
 
+//    public @Nullable FileDescriptor getDownloadedFileDescriptor(){
+//        if(mOut!=null){
+//            try {
+//                return mOut.getFD();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//                return null;
+//            }
+//        }else {
+//            return null;
+//        }
+//    }
+
     void postErrorEvent(final Throwable e){
         e.printStackTrace();
         mHandler.removeCallbacksAndMessages(null);
@@ -176,7 +191,6 @@ public class FileDownloader {
     }
 
     protected void download() {
-        FileOutputStream out = null;
         InputStream is = null;
         long readedSize = 0;
         long mediaLength = 0;
@@ -199,7 +213,7 @@ public class FileDownloader {
                 Log.e(TAG, "mRemoteUrl:" + mRemoteUrl);
                 Log.e(TAG, "readedSize:" + readedSize);
             }
-            out = new FileOutputStream(cacheFile, true);
+            mOut = new FileOutputStream(cacheFile, true);
 
             httpConnection.setRequestProperty("Connection", "Keep-Alive");
             httpConnection.setRequestProperty("User-Agent", "NetFox");
@@ -229,13 +243,14 @@ public class FileDownloader {
             onProgress(readedSize, mediaLength);
 
             while ((tmpReadSize = is.read(buf)) != -1 && !mIsStop.get()) {
-                out.write(buf, 0, tmpReadSize);
+                mOut.write(buf, 0, tmpReadSize);
                 readedSize += tmpReadSize;
+                readCountForProgressNotofy++;
                 //每读取十次（100k），发送一次进度通知
                 if(readCountForProgressNotofy>=10) {
                     readCountForProgressNotofy = 0;
                     onProgress(readedSize, mediaLength);
-                    SystemClock.sleep(2000);//mock slow network
+//                    SystemClock.sleep(2000);//mock slow network
                 }
             }
         } catch (OutOfMemoryError outOfMemoryError) {
@@ -260,11 +275,11 @@ public class FileDownloader {
             }
             return;
         } finally {
-            if (out != null) {
+            if (mOut != null) {
                 try {
-                    out.flush();
-                    out.getFD().sync();
-                    out.close();
+                    mOut.flush();
+                    mOut.close();
+                    mOut = null;
                 } catch (IOException e) {
                     //
                 }

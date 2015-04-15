@@ -92,7 +92,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                             if (DEBUG) {
                                 Log.e("mpex", "mStateWithLocalCache :" + mStateWithLocalCache);
                             }
-                            long prepareBufferSize = (long) Math.max(getMinBufferBlockSize(), getPrepareBufferRate() * length);
+                            long prepareBufferSize = getMinBufferBlockSize();//(long) Math.max(getMinBufferBlockSize(), getPrepareBufferRate() * length);
                             if (progress - latestProgressOnPrepare >= prepareBufferSize
                                     || (mFileDownloader != null && mFileDownloader.getDownloadedFile().length() == length)) {
                                 if (DEBUG) {

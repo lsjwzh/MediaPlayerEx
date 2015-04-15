@@ -3,14 +3,11 @@ package com.lsjwzh.media.mediaplayerex;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Environment;
-import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
@@ -108,7 +105,7 @@ public abstract class MediaPlayerEx {
     /**
      * buffer rate,if the value calc by bufferrate is smaller than mMinBufferBlockSize,use mMinBufferBlockSize
      */
-    float mPrepareBufferRate = DEFAULT_PREPARE_BUFFER_RATE;
+//    float mPrepareBufferRate = DEFAULT_PREPARE_BUFFER_RATE;
 
     /**
      * min buffer size
@@ -181,13 +178,13 @@ public abstract class MediaPlayerEx {
         mCacheDir = pCacheDir;
     }
 
-    public float getPrepareBufferRate() {
-        return mPrepareBufferRate;
-    }
-
-    public void setPrepareBufferRate(float pPrepareBufferRate) {
-        mPrepareBufferRate = pPrepareBufferRate;
-    }
+//    public float getPrepareBufferRate() {
+//        return mPrepareBufferRate;
+//    }
+//
+//    public void setPrepareBufferRate(float pPrepareBufferRate) {
+//        mPrepareBufferRate = pPrepareBufferRate;
+//    }
 
 
     public long getMinBufferBlockSize() {
