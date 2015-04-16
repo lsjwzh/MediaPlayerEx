@@ -29,8 +29,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
     private AtomicLong mLatestHandleTime = new AtomicLong(0);
 
     private Handler mOpHandler;
-
-
+    private boolean mIsPrepared;
 
 
     public StrongerMediaPlayer(OnErrorListener errorOp) {
@@ -95,6 +94,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
         mIsPreparing = true;
         try {
             super.prepare();
+            mIsPrepared = true;
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -117,6 +117,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
         super.setOnPreparedListener(new OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
+                mIsPrepared = true;
                 mIsPreparing = false;
                 if (getOnPreparedListener() != null) {
                     getOnPreparedListener().onPrepared(mediaPlayer);
@@ -151,6 +152,10 @@ public class StrongerMediaPlayer extends MediaPlayer {
         }
     }
 
+    public boolean isPrepared(){
+        return mIsPrepared;
+    }
+
     @Override
     public boolean isPlaying() {
         return mIsPlaying;
@@ -178,6 +183,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
     @Override
     public void reset() {
         try {
+            mIsPrepared = false;
             super.reset();
         } catch (Exception e) {
             onError();
@@ -189,7 +195,8 @@ public class StrongerMediaPlayer extends MediaPlayer {
     @Override
     public void release() {
         try {
-           mIsPlaying=false;
+            mIsPrepared = false;
+            mIsPlaying=false;
             //当在准备当中时,等待准备完毕或者准备失败再释放资源
             //需要等待prepare完毕再释放资源
             if(mIsPreparing) {
