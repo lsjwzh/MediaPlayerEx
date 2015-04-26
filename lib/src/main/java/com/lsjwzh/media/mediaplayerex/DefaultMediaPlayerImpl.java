@@ -52,6 +52,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
     private boolean mHasStarted;
     private long mSavedPosition;
     private boolean mErrorHappenedOnDownloading;
+    private boolean mLooping;
 
     @Override
     public void setDataSource(Context context, String uri) {
@@ -257,6 +258,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             } else if (mSurface != null) {
                 mMediaPlayer.setSurface(mSurface);
             }
+            mMediaPlayer.setLooping(mLooping);
         }
     }
 
@@ -459,6 +461,18 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             try {
                 mMediaPlayer.setDisplay(holder);
             } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void setLooping(boolean looping) {
+        mLooping = looping;
+        if (mMediaPlayer != null) {
+            try {
+                mMediaPlayer.setLooping(looping);
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
         }

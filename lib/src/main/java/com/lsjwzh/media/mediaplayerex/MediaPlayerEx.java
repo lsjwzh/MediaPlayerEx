@@ -78,6 +78,9 @@ public abstract class MediaPlayerEx {
 
     public abstract void setAudioStreamType(int streamMusic);
 
+
+    public abstract void setLooping(boolean looping);
+
     public String getCacheDir() {
         return mCacheDir;
     }
@@ -164,6 +167,7 @@ public abstract class MediaPlayerEx {
         }
         return classList;
     }
+
 
     public interface IEventListener {
 

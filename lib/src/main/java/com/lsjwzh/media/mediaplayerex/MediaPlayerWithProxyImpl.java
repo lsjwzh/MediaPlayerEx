@@ -317,4 +317,9 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
             mMediaPlayer.setAudioStreamType(streamMusic);
         }
     }
+
+    @Override
+    public void setLooping(boolean looping) {
+
+    }
 }
