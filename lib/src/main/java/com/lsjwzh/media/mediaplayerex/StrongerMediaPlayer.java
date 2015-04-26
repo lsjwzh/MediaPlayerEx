@@ -1,15 +1,15 @@
 package com.lsjwzh.media.mediaplayerex;
 
+import java.io.FileDescriptor;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
+
 import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 import android.util.Log;
-
-import java.io.FileDescriptor;
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author pwy
@@ -30,14 +30,14 @@ public class StrongerMediaPlayer extends MediaPlayer {
 
     private Handler mOpHandler;
     private boolean mIsPrepared;
-
+    private boolean mHasSetDataSource;
 
     public StrongerMediaPlayer(OnErrorListener errorOp) {
-        mOpHandler = new Handler( Looper.getMainLooper()) {
+        mOpHandler = new Handler(Looper.getMainLooper()) {
 
             @Override
             public void handleMessage(final Message msg) {
-                //如果最后处理时间与现在的时间差，在100ms内，则将操作放到原操作100ms之后处理
+                // 如果最后处理时间与现在的时间差，在100ms内，则将操作放到原操作100ms之后处理
                 long timeSpread = SystemClock.elapsedRealtime() - mLatestHandleTime.get();
                 if (timeSpread < 100) {
                     long delayTime = 110 - timeSpread;
@@ -48,7 +48,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
                 if (msg.what == MSG_START) {
                     try {
                         mIsPlaying = true;
-                        Log.e("mpex","call real mp start");
+                        Log.e("mpex", "call real mp start");
                         StrongerMediaPlayer.super.start();
                     } catch (Exception e) {
                         onError();
@@ -64,13 +64,13 @@ public class StrongerMediaPlayer extends MediaPlayer {
                 mLatestHandleTime.set(SystemClock.elapsedRealtime());
             }
         };
-//        this.setErrHandler(errorOp);
+        // this.setErrHandler(errorOp);
         this.setOnErrorListener(errorOp);
         super.setOnCompletionListener(new OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
                 mIsPlaying = false;
-                if(getOnCompletionListener()!=null){
+                if (getOnCompletionListener() != null) {
                     getOnCompletionListener().onCompletion(mp);
                 }
             }
@@ -78,15 +78,18 @@ public class StrongerMediaPlayer extends MediaPlayer {
         setScreenOnWhilePlaying(true);
     }
 
-
     @Override
-    public void setDataSource(String path) throws IOException, IllegalArgumentException, SecurityException, IllegalStateException {
+    public void setDataSource(String path) throws IOException, IllegalArgumentException, SecurityException,
+            IllegalStateException {
         super.setDataSource(path);
+        mHasSetDataSource = true;
     }
 
     @Override
-    public void setDataSource(FileDescriptor fd, long offset, long length) throws IOException, IllegalArgumentException, IllegalStateException {
+    public void setDataSource(FileDescriptor fd, long offset, long length) throws IOException,
+            IllegalArgumentException, IllegalStateException {
         super.setDataSource(fd, offset, length);
+        mHasSetDataSource = true;
     }
 
     @Override
@@ -95,7 +98,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
         try {
             super.prepare();
             mIsPrepared = true;
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         mIsPreparing = false;
@@ -108,8 +111,8 @@ public class StrongerMediaPlayer extends MediaPlayer {
             @Override
             public boolean onError(MediaPlayer mediaPlayer, int i, int i2) {
                 mIsPreparing = false;
-                if(getErrHandler()!=null){
-                    return getErrHandler().onError(mediaPlayer,i,i2);
+                if (getErrHandler() != null) {
+                    return getErrHandler().onError(mediaPlayer, i, i2);
                 }
                 return false;
             }
@@ -129,7 +132,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
 
     @Override
     public void start() throws IllegalStateException {
-        if(mOpHandler!=null) {
+        if (mOpHandler != null) {
             mOpHandler.handleMessage(mOpHandler.obtainMessage(MSG_START));
         }
     }
@@ -147,18 +150,22 @@ public class StrongerMediaPlayer extends MediaPlayer {
 
     @Override
     public void pause() throws IllegalStateException {
-        if(mOpHandler!=null) {
+        if (mOpHandler != null) {
             mOpHandler.handleMessage(mOpHandler.obtainMessage(MSG_PAUSE));
         }
     }
 
-    public boolean isPrepared(){
+    public boolean isPrepared() {
         return mIsPrepared;
     }
 
     @Override
     public boolean isPlaying() {
         return mIsPlaying;
+    }
+
+    public boolean hasSetDataSource() {
+        return mHasSetDataSource;
     }
 
     @Override
@@ -183,6 +190,7 @@ public class StrongerMediaPlayer extends MediaPlayer {
     @Override
     public void reset() {
         try {
+            mHasSetDataSource = false;
             mIsPrepared = false;
             super.reset();
         } catch (Exception e) {
@@ -191,15 +199,15 @@ public class StrongerMediaPlayer extends MediaPlayer {
         }
     }
 
-
     @Override
     public void release() {
         try {
+            mHasSetDataSource = false;
             mIsPrepared = false;
-            mIsPlaying=false;
-            //当在准备当中时,等待准备完毕或者准备失败再释放资源
-            //需要等待prepare完毕再释放资源
-            if(mIsPreparing) {
+            mIsPlaying = false;
+            // 当在准备当中时,等待准备完毕或者准备失败再释放资源
+            // 需要等待prepare完毕再释放资源
+            if (mIsPreparing) {
                 setOnErrorListener(new OnErrorListener() {
                     @Override
                     public boolean onError(MediaPlayer mediaPlayer, int i, int i2) {
@@ -245,7 +253,8 @@ public class StrongerMediaPlayer extends MediaPlayer {
 
     private void onError() {
         mIsPlaying = false;
-        if (getErrHandler() != null) getErrHandler().onError(this, 0, 0);
+        if (getErrHandler() != null)
+            getErrHandler().onError(this, 0, 0);
     }
 
     @Override
@@ -263,30 +272,33 @@ public class StrongerMediaPlayer extends MediaPlayer {
         super.setVolume(leftVolume, rightVolume);
     }
 
-
     public OnErrorListener getErrHandler() {
         return errHandler;
     }
+
     @Override
-    public void setOnErrorListener(OnErrorListener listener){
+    public void setOnErrorListener(OnErrorListener listener) {
         this.errHandler = listener;
-        if(!mIsPreparing) {
+        if (!mIsPreparing) {
             super.setOnErrorListener(listener);
         }
 
     }
+
+    public OnPreparedListener getOnPreparedListener() {
+        return onPreparedListener;
+    }
+
     @Override
     public void setOnPreparedListener(OnPreparedListener listener) {
         this.onPreparedListener = listener;
-        if(!mIsPreparing) {
+        if (!mIsPreparing) {
             super.setOnPreparedListener(listener);
         }
     }
 
-    @Override
-    public void setOnSeekCompleteListener(OnSeekCompleteListener listener) {
-        this.onSeekCompleteListener = listener;
-        super.setOnSeekCompleteListener(listener);
+    public OnCompletionListener getOnCompletionListener() {
+        return onCompletionListener;
     }
 
     @Override
@@ -294,16 +306,14 @@ public class StrongerMediaPlayer extends MediaPlayer {
         this.onCompletionListener = listener;
     }
 
-    public OnPreparedListener getOnPreparedListener() {
-        return onPreparedListener;
-    }
-
-    public OnCompletionListener getOnCompletionListener() {
-        return onCompletionListener;
-    }
-
     public OnSeekCompleteListener getOnSeekCompleteListener() {
         return onSeekCompleteListener;
+    }
+
+    @Override
+    public void setOnSeekCompleteListener(OnSeekCompleteListener listener) {
+        this.onSeekCompleteListener = listener;
+        super.setOnSeekCompleteListener(listener);
     }
 
 }
