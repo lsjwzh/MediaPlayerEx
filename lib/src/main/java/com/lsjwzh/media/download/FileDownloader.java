@@ -241,7 +241,6 @@ public class FileDownloader {
                 if (readCountForProgressNotofy >= 10) {
                     readCountForProgressNotofy = 0;
                     onProgress(readedSize, mediaLength);
-                    // SystemClock.sleep(2000);//mock slow network
                 }
             }
         } catch (OutOfMemoryError outOfMemoryError) {

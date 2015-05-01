@@ -1,5 +1,6 @@
 package com.lsjwzh.media.mediaplayerex;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.LinkedList;
@@ -12,6 +13,8 @@ import android.support.annotation.NonNull;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
+import com.lsjwzh.media.download.FileDownloader;
+
 /**
  * interface for MediaPlayerCompat
  * Created by panwenye on 14-8-19.
@@ -19,8 +22,8 @@ import android.view.SurfaceHolder;
 public abstract class MediaPlayerEx {
     public static final int DEFAULT_MIN_PREPARE_BUFFER_SIZE = 100 * 1024;// 100k
     final Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>> mListenersMap = new Hashtable<Class<? extends IEventListener>, LinkedList<IEventListener>>();
-    // @CacheMode
-    // int mCacheMode = 0;
+
+    // ToDo check storage
     String mCacheDir = Environment.getExternalStorageDirectory() + "/mpex";
     /**
      * min buffer size
@@ -62,6 +65,9 @@ public abstract class MediaPlayerEx {
     public abstract boolean isPrepared();
 
     public abstract boolean isReleased();
+
+    //ToDo use interface instead
+    public abstract FileDownloader getFileDownloader();
 
     /**
      * buffer rate,if the value calc by bufferrate is smaller than mMinBufferBlockSize,use mMinBufferBlockSize
@@ -207,6 +213,11 @@ public abstract class MediaPlayerEx {
 
     public interface OnPositionUpdateListener extends IEventListener {
         public void onPositionUpdate(long position, long duration);
+    }
+
+    public interface OnFileDownloadListener extends IEventListener {
+        public void onProgress(long progress, long length);
+        public void onComplete(File file);
     }
 
     public interface OnVolumeChangedListener extends IEventListener {

@@ -6,6 +6,7 @@ import java.io.IOException;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.support.annotation.IntDef;
 import android.util.Log;
 import android.view.Surface;
@@ -85,6 +86,10 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                                         .onBuffering((int) ((progress - latestProgressOnPrepare) * 1f / getMinBufferBlockSize()) * 100);
                             }
                         }
+                        for (IEventListener listener : getListeners(OnFileDownloadListener.class)) {
+                            ((OnFileDownloadListener) listener)
+                                    .onProgress(progress, length);
+                        }
                     }
 
                     @Override
@@ -95,6 +100,10 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                         tryPrepareMp();
                         for (IEventListener listener : getListeners(OnBufferingListener.class)) {
                             ((OnBufferingListener) listener).onBuffering(100);
+                        }
+                        for (IEventListener listener : getListeners(OnFileDownloadListener.class)) {
+                            ((OnFileDownloadListener) listener)
+                                    .onComplete(pFile);
                         }
                     }
 
@@ -166,6 +175,10 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             mMediaPlayer.setOnCompletionListener(null);
             mMediaPlayer.setOnSeekCompleteListener(null);
             mMediaPlayer.setOnBufferingUpdateListener(null);
+            mMediaPlayer.setDisplay(null);
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                mMediaPlayer.setSurface(null);
+            }
             mMediaPlayer.release();
             mMediaPlayer = null;
         }
@@ -256,7 +269,9 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             if (mSurfaceHolder != null) {
                 mMediaPlayer.setDisplay(mSurfaceHolder);
             } else if (mSurface != null) {
-                mMediaPlayer.setSurface(mSurface);
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                    mMediaPlayer.setSurface(mSurface);
+                }
             }
             mMediaPlayer.setLooping(mLooping);
         }
@@ -453,6 +468,12 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
     public boolean isReleased() {
         return mHasReleased;
     }
+
+    @Override
+    public FileDownloader getFileDownloader() {
+        return mFileDownloader;
+    }
+
 
     @Override
     public void setDisplay(SurfaceHolder holder) {

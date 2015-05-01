@@ -1,5 +1,8 @@
 package com.lsjwzh.media.mediaplayerex;
 
+import java.io.File;
+import java.io.IOException;
+
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.media.MediaPlayer;
@@ -7,10 +10,8 @@ import android.support.annotation.IntDef;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
+import com.lsjwzh.media.download.FileDownloader;
 import com.lsjwzh.media.proxy.FileUtil;
-
-import java.io.File;
-import java.io.IOException;
 
 /**
  * Created by panwenye on 14-8-20.
@@ -273,6 +274,11 @@ public class MediaPlayerWithProxyImpl extends MediaPlayerEx {
     @Override
     public boolean isReleased() {
         return mHasReleased;
+    }
+
+    @Override
+    public FileDownloader getFileDownloader() {
+        return null;
     }
 
     @Override
