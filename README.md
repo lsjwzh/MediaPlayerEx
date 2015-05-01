@@ -6,7 +6,7 @@ this project is inspired by
 
 Why use MediaPlayerEx
 ========================
-
+1.support caching play with mediaplayer
 
 Basic Usage
 ===========
