@@ -1,45 +1,31 @@
-package com.lsjwzh.media.mediaplayerex;
+package com.lsjwzh.media.mediaplayer;
 
 import java.io.File;
 import java.io.IOException;
 
 import android.annotation.TargetApi;
 import android.content.Context;
-import android.media.MediaPlayer;
 import android.os.Build;
 import android.support.annotation.IntDef;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
-import com.lsjwzh.media.download.FileDownloader;
-import com.lsjwzh.media.proxy.FileUtil;
-
 /**
  * Created by panwenye on 14-8-20.
  */
-public class DefaultMediaPlayerImpl extends MediaPlayerEx {
-    public static final int NONE = 0;
-    public static final int WAIT_FOR_PREPARE = 1;
-    static final boolean DEBUG = true;
-    StrongerMediaPlayer mMediaPlayer;
-    MediaMonitor mMediaMonitor;
-    /**
-     * local url,only for LOCAL CACHE MODE
-     */
-    String mLocalUri;
-    /**
-     * only for LOCAL CACHE MODE
-     */
-    FileDownloader mFileDownloader;
-    /**
-     * only for LOCAL CACHE MODE
-     */
+public class CacheFileMediaPlayer extends MediaPlayer {
+    private static final boolean DEBUG = false;
+    private static final int NONE = 0;
+    private static final int WAIT_FOR_PREPARE = 1;
+
+    private StrongerMediaPlayer mMediaPlayer;
+    private MediaMonitor mMediaMonitor;
+    private MediaDownloader mMediaDownloader;
+    private final MediaDownloaderFactory mMediaDownloaderFactory;
+
     @State
-    int mStateWithLocalCache;
-    /**
-     * only for LOCAL CACHE MODE
-     */
+    private int mStateWithLocalCache;
     long latestProgressOnPrepare = 0;
     private boolean mHasPrepared;
     private boolean mHasReleased;
@@ -52,22 +38,23 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
      */
     private boolean mHasStarted;
     private long mSavedPosition;
-    private boolean mErrorHappenedOnDownloading;
     private boolean mLooping;
+
+
+    public CacheFileMediaPlayer(MediaDownloaderFactory mediaDownloaderFactory) {
+        mMediaDownloaderFactory = mediaDownloaderFactory;
+    }
 
     @Override
     public void setDataSource(Context context, String uri) {
         mContext = context;
         try {
             if (isRemoteMedia(uri)) {
-                // if the cache mode is local,we must transfer remote uri to local uri
-                mLocalUri = getCacheDir() + File.separator + FileUtil.extractFileNameFromURI(uri);
-                // if cachemode not NONE, start buffer
-                if (mFileDownloader != null) {
-                    mFileDownloader.stop();
+                if (mMediaDownloader != null) {
+                    mMediaDownloader.stop();
                 }
-                mFileDownloader = FileDownloader.get(uri, mLocalUri);
-                mFileDownloader.setEventListener(new FileDownloader.EventListener() {
+                mMediaDownloader = mMediaDownloaderFactory.createMediaDownloader(uri);
+                mMediaDownloader.registerListener(new MediaDownloader.OnDownloadListener() {
                     @Override
                     public void onProgress(long progress, long length) {
                         if (DEBUG) {
@@ -76,19 +63,15 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                         long prepareBufferSize = getMinBufferBlockSize();// (long) Math.max(getMinBufferBlockSize(),
                         // getPrepareBufferRate() * length);
                         if (progress - latestProgressOnPrepare >= prepareBufferSize
-                                || (mFileDownloader != null && progress == length)) {
+                                || (mMediaDownloader != null && progress == length)) {
                             tryPrepareMp();
                         }
                         // notify buffering event
                         if (progress - latestProgressOnPrepare < prepareBufferSize) {
-                            for (IEventListener listener : getListeners(OnBufferingListener.class)) {
+                            for (EventListener listener : getListeners(OnBufferingListener.class)) {
                                 ((OnBufferingListener) listener)
                                         .onBuffering((int) ((progress - latestProgressOnPrepare) * 1f / getMinBufferBlockSize()) * 100);
                             }
-                        }
-                        for (IEventListener listener : getListeners(OnFileDownloadListener.class)) {
-                            ((OnFileDownloadListener) listener)
-                                    .onProgress(progress, length);
                         }
                     }
 
@@ -98,31 +81,25 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                             Log.e("mpex", latestProgressOnPrepare + "/" + pFile.length());
                         }
                         tryPrepareMp();
-                        for (IEventListener listener : getListeners(OnBufferingListener.class)) {
+                        for (EventListener listener : getListeners(OnBufferingListener.class)) {
                             ((OnBufferingListener) listener).onBuffering(100);
-                        }
-                        for (IEventListener listener : getListeners(OnFileDownloadListener.class)) {
-                            ((OnFileDownloadListener) listener)
-                                    .onComplete(pFile);
                         }
                     }
 
                     @Override
                     public void onError(Throwable t) {
-                        mErrorHappenedOnDownloading = true;
-                        for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                        for (EventListener listener : getListeners(OnErrorListener.class)) {
                             ((OnErrorListener) listener).onError(t);
                         }
                     }
                 });
-                mFileDownloader.start();
+                mMediaDownloader.start();
             } else {
                 initMediaPlayer();
-                mLocalUri = uri;
                 mMediaPlayer.setDataSource(uri);
             }
         } catch (IOException e) {
-            for (IEventListener listener : getListeners(OnErrorListener.class)) {
+            for (EventListener listener : getListeners(OnErrorListener.class)) {
                 ((OnErrorListener) listener).onError(e);
             }
         }
@@ -136,16 +113,15 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                 Log.e("mpex", "call setDataSource ");
             }
             try {
-
                 boolean isPlayingBeforeReinit = mHasStarted;
                 initMediaPlayer();
                 mHasStarted = isPlayingBeforeReinit;
-                mMediaPlayer.setDataSource(mLocalUri);
+                mMediaPlayer.setDataSource(mMediaDownloader.getLocalFilePath());
             } catch (IOException e) {
                 if (DEBUG) {
                     Log.e("mpex", " error on setDataSource:" + e.getMessage());
                 }
-                for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                for (EventListener listener : getListeners(OnErrorListener.class)) {
                     ((OnErrorListener) listener).onError(e);
                 }
                 return;
@@ -191,19 +167,19 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             mHasStarted = false;
             mHasPrepared = false;
             mMPErrorHappened = false;
-            mMediaPlayer = new StrongerMediaPlayer(new MediaPlayer.OnErrorListener() {
+            mMediaPlayer = new StrongerMediaPlayer(new android.media.MediaPlayer.OnErrorListener() {
                 @Override
-                public boolean onError(MediaPlayer mp, int what, int extra) {
+                public boolean onError(android.media.MediaPlayer mp, int what, int extra) {
                     Log.e("mpex", "what:" + what + ",extra:" + extra + "isPrepared:" + isPrepared());
-                    if (mFileDownloader != null) {
-                        if (mFileDownloader.getDownloadInfo().getCurrentSize() > latestProgressOnPrepare
+                    if (mMediaDownloader != null) {
+                        if (mMediaDownloader.getDownloadedSize() > latestProgressOnPrepare
                                 + getMinBufferBlockSize()) {
-                            latestProgressOnPrepare = mFileDownloader.getDownloadInfo().getCurrentSize();
+                            latestProgressOnPrepare = mMediaDownloader.getDownloadedSize();
                         }
                     }
                     if (isPrepared()) {
                         waitreinit();
-                        if (mFileDownloader != null && mFileDownloader.isFinished()) {
+                        if (mMediaDownloader != null && mMediaDownloader.isFinished()) {
                             tryPrepareMp();
                         }
                         return true;
@@ -212,7 +188,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                     UnknownMediaPlayerException unknownMediaPlayerException = new UnknownMediaPlayerException();
                     unknownMediaPlayerException.what = what;
                     unknownMediaPlayerException.extra = extra;
-                    for (IEventListener listener : getListeners(OnErrorListener.class)) {
+                    for (EventListener listener : getListeners(OnErrorListener.class)) {
                         ((OnErrorListener) listener).onError(unknownMediaPlayerException);
                     }
                     return true;
@@ -230,7 +206,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                             if (DEBUG) {
                                 Log.e("mpex", "mSavedPosition:" + mSavedPosition);
                             }
-                            for (IEventListener listener : getListeners(OnPositionUpdateListener.class)) {
+                            for (EventListener listener : getListeners(OnPositionUpdateListener.class)) {
                                 ((OnPositionUpdateListener) listener).onPositionUpdate(mSavedPosition, duration);
                             }
                         }
@@ -238,31 +214,31 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                 };
             }
 
-            mMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+            mMediaPlayer.setOnSeekCompleteListener(new android.media.MediaPlayer.OnSeekCompleteListener() {
                 @Override
-                public void onSeekComplete(MediaPlayer mp) {
-                    for (IEventListener listener : getListeners(OnSeekCompleteListener.class)) {
+                public void onSeekComplete(android.media.MediaPlayer mp) {
+                    for (EventListener listener : getListeners(OnSeekCompleteListener.class)) {
                         ((OnSeekCompleteListener) listener).onSeekComplete(getCurrentPosition());
                     }
                 }
             });
-            mMediaPlayer.setOnBufferingUpdateListener(new MediaPlayer.OnBufferingUpdateListener() {
+            mMediaPlayer.setOnBufferingUpdateListener(new android.media.MediaPlayer.OnBufferingUpdateListener() {
                 @Override
-                public void onBufferingUpdate(MediaPlayer mp, int percent) {
+                public void onBufferingUpdate(android.media.MediaPlayer mp, int percent) {
                     // fix bug: BufferingUpdate still can been triggered when mediaplayer is playing,
                     if (isPlaying()) {
                         percent = 100;
                     }
-                    for (IEventListener listener : getListeners(OnBufferingListener.class)) {
+                    for (EventListener listener : getListeners(OnBufferingListener.class)) {
                         ((OnBufferingListener) listener).onBuffering(percent);
                     }
                 }
             });
-            mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            mMediaPlayer.setOnCompletionListener(new android.media.MediaPlayer.OnCompletionListener() {
                 @Override
-                public void onCompletion(MediaPlayer mp) {
-                    for (IEventListener listener : getListeners(OnPlayCompleteListener.class)) {
-                        ((OnPlayCompleteListener) listener).onPlayComplete(DefaultMediaPlayerImpl.this);
+                public void onCompletion(android.media.MediaPlayer mp) {
+                    for (EventListener listener : getListeners(OnPlayCompleteListener.class)) {
+                        ((OnPlayCompleteListener) listener).onPlayComplete(CacheFileMediaPlayer.this);
                     }
                 }
             });
@@ -285,12 +261,12 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
         try {
             mMediaPlayer.prepare();
             mHasPrepared = true;
-            latestProgressOnPrepare = mFileDownloader.getDownloadInfo().getCurrentSize();
-            for (IEventListener listener : getListeners(OnPreparedListener.class)) {
+            latestProgressOnPrepare = mMediaDownloader.getDownloadedSize();
+            for (EventListener listener : getListeners(OnPreparedListener.class)) {
                 ((OnPreparedListener) listener).onPrepared();
             }
         } catch (IOException e) {
-            for (IEventListener listener : getListeners(OnErrorListener.class)) {
+            for (EventListener listener : getListeners(OnErrorListener.class)) {
                 ((OnErrorListener) listener).onError(e);
             }
         }
@@ -303,9 +279,9 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             return;
         }
         mStateWithLocalCache = NONE;
-        mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+        mMediaPlayer.setOnPreparedListener(new android.media.MediaPlayer.OnPreparedListener() {
             @Override
-            public void onPrepared(MediaPlayer mp) {
+            public void onPrepared(android.media.MediaPlayer mp) {
                 if (DEBUG) {
                     Log.e("mpex", "prepareAsync success");
                 }
@@ -314,17 +290,17 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
                     if (DEBUG) {
                         Log.e("mpex", "seek to : " + mSavedPosition);
                     }
-                    mMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                    mMediaPlayer.setOnSeekCompleteListener(new android.media.MediaPlayer.OnSeekCompleteListener() {
                         @Override
-                        public void onSeekComplete(MediaPlayer mp) {
+                        public void onSeekComplete(android.media.MediaPlayer mp) {
                             mMediaPlayer.start();
                         }
                     });
                     mMediaPlayer.seekTo((int) mSavedPosition);
                     return;
                 }
-                latestProgressOnPrepare = mFileDownloader.getDownloadInfo().getCurrentSize();
-                for (IEventListener listener : getListeners(OnPreparedListener.class)) {
+                latestProgressOnPrepare = mMediaDownloader.getDownloadedSize();
+                for (EventListener listener : getListeners(OnPreparedListener.class)) {
                     if (DEBUG) {
                         Log.e("mpex", "call onPrepared");
                     }
@@ -348,7 +324,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.start();
             }
-            for (IEventListener listener : getListeners(OnStartListener.class)) {
+            for (EventListener listener : getListeners(OnStartListener.class)) {
                 ((OnStartListener) listener).onStart();
             }
         }
@@ -376,7 +352,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.pause();
             }
-            for (IEventListener listener : getListeners(OnPauseListener.class)) {
+            for (EventListener listener : getListeners(OnPauseListener.class)) {
                 ((OnPauseListener) listener).onPause();
             }
         }
@@ -392,7 +368,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.pause();
             }
-            for (IEventListener listener : getListeners(OnStopListener.class)) {
+            for (EventListener listener : getListeners(OnStopListener.class)) {
                 ((OnStopListener) listener).onStop();
             }
         }
@@ -408,7 +384,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             if (mMediaMonitor != null) {
                 mMediaMonitor.pause();
             }
-            for (IEventListener listener : getListeners(OnResetListener.class)) {
+            for (EventListener listener : getListeners(OnResetListener.class)) {
                 ((OnResetListener) listener).onReset();
             }
         }
@@ -423,7 +399,7 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
             mMediaPlayer.release();
             mMediaPlayer = null;
             mHasReleased = true;
-            for (IEventListener listener : getListeners(OnReleaseListener.class)) {
+            for (EventListener listener : getListeners(OnReleaseListener.class)) {
                 ((OnReleaseListener) listener).onRelease();
             }
         }
@@ -470,12 +446,6 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
     }
 
     @Override
-    public FileDownloader getFileDownloader() {
-        return mFileDownloader;
-    }
-
-
-    @Override
     public void setDisplay(SurfaceHolder holder) {
         mSurfaceHolder = holder;
         if (mMediaPlayer != null) {
@@ -503,7 +473,6 @@ public class DefaultMediaPlayerImpl extends MediaPlayerEx {
     @Override
     public void setDisplay(Surface pSurface) {
         mSurface = pSurface;
-
         if (mMediaPlayer != null) {
             try {
                 mMediaPlayer.setSurface(pSurface);

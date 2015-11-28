@@ -1,4 +1,4 @@
-package com.lsjwzh.media.mediaplayerex;
+package com.lsjwzh.media.mediaplayer;
 
 import java.io.FileDescriptor;
 import java.io.IOException;

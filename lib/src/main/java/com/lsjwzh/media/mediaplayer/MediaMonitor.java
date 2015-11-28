@@ -1,4 +1,4 @@
-package com.lsjwzh.media.mediaplayerex;
+package com.lsjwzh.media.mediaplayer;
 
 import android.os.Handler;
 import android.os.Looper;

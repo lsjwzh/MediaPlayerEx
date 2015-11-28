@@ -2,6 +2,7 @@ package com.lsjwzh.mediaplayexdemo;
 
 import android.graphics.SurfaceTexture;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -10,13 +11,19 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 
-import com.lsjwzh.media.mediaplayerex.DefaultMediaPlayerImpl;
-import com.lsjwzh.media.mediaplayerex.MediaPlayerEx;
+import com.lsjwzh.media.filedownloader.FileDownloader;
+import com.lsjwzh.media.mediaplayer.CacheFileMediaPlayer;
+import com.lsjwzh.media.mediaplayer.MediaDownloader;
+import com.lsjwzh.media.mediaplayer.MediaDownloaderFactory;
+import com.lsjwzh.media.mediaplayer.MediaPlayer;
+
+import java.io.File;
+import java.util.Random;
 
 
 public class MainActivity extends ActionBarActivity {
     TextureView mTextureView;
-    MediaPlayerEx  mMediaPlayerEx;
+    MediaPlayer mMediaPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,11 +33,11 @@ public class MainActivity extends ActionBarActivity {
         mTextureView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (mMediaPlayerEx != null) {
-                    if (mMediaPlayerEx.isPlaying()) {
-                        mMediaPlayerEx.pause();
+                if (mMediaPlayer != null) {
+                    if (mMediaPlayer.isPlaying()) {
+                        mMediaPlayer.pause();
                     } else {
-                        mMediaPlayerEx.start();
+                        mMediaPlayer.start();
                     }
                 }
             }
@@ -60,28 +67,33 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void initMpex(final Surface s) {
-        if(mMediaPlayerEx!=null){
-            mMediaPlayerEx.clearListeners();
-            mMediaPlayerEx.release();
+        if(mMediaPlayer !=null){
+            mMediaPlayer.clearListeners();
+            mMediaPlayer.release();
         }
-        mMediaPlayerEx = new DefaultMediaPlayerImpl();
-        mMediaPlayerEx.setDataSource(MainActivity.this, "http://mofunsky-video.qiniudn.com/126/314/20150324094118997736001676.mp4");
-        mMediaPlayerEx.setDisplay(s);
-        mMediaPlayerEx.registerListener(MediaPlayerEx.OnPreparedListener.class, new MediaPlayerEx.OnPreparedListener() {
+        mMediaPlayer = new CacheFileMediaPlayer(new MediaDownloaderFactory() {
+            @Override
+            public MediaDownloader createMediaDownloader(String uri) {
+                return new MediaDownloaderImpl(uri);
+            }
+        });
+        mMediaPlayer.setDataSource(MainActivity.this, "http://mofunsky-video.qiniudn.com/126/314/20150324094118997736001676.mp4");
+        mMediaPlayer.setDisplay(s);
+        mMediaPlayer.registerListener(MediaPlayer.OnPreparedListener.class, new MediaPlayer.OnPreparedListener() {
 			@Override
 			public void onPrepared() {
 				Log.e("mpex", " onPrepared then start");
-				mMediaPlayerEx.start();
+				mMediaPlayer.start();
 			}
 		});
-        mMediaPlayerEx.registerListener(MediaPlayerEx.OnErrorListener.class,new MediaPlayerEx.OnErrorListener(){
+        mMediaPlayer.registerListener(MediaPlayer.OnErrorListener.class,new MediaPlayer.OnErrorListener(){
 
 			@Override
 			public void onError(Throwable e) {
                 Log.e("mpex", " call onError listener");
             }
 		});
-        mMediaPlayerEx.prepareAsync();
+        mMediaPlayer.prepareAsync();
     }
 
 
@@ -102,5 +114,64 @@ public class MainActivity extends ActionBarActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    class MediaDownloaderImpl extends MediaDownloader {
+        FileDownloader mFileDownloader;
+        String mUrl;
+        String mLocalPath;
+
+        public MediaDownloaderImpl(String url) {
+            mUrl = url;
+            mLocalPath = Environment.getExternalStorageDirectory()
+                    + "/" + Math.abs(new Random().nextLong()) + ".mp4";
+            mFileDownloader = FileDownloader.get(url, mLocalPath);
+            mFileDownloader.setEventListener(new FileDownloader.EventListener() {
+                @Override
+                public void onProgress(long progress, long length) {
+                    MediaDownloaderImpl.this.onProgress(progress, length);
+                }
+
+                @Override
+                public void onSuccess(File pFile) {
+                    MediaDownloaderImpl.this.onSuccess(pFile);
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    MediaDownloaderImpl.this.onError(t);
+                }
+            });
+        }
+
+        @Override
+        public void start() {
+            mFileDownloader.start();
+        }
+
+        @Override
+        public void stop() {
+            mFileDownloader.stop();
+        }
+
+        @Override
+        public boolean isFinished() {
+            return mFileDownloader.isFinished();
+        }
+
+        @Override
+        public long getDownloadedSize() {
+            return mFileDownloader.getDownloadInfo().getCurrentSize();
+        }
+
+        @Override
+        public String getRemoteFileUrl() {
+            return mUrl;
+        }
+
+        @Override
+        public String getLocalFilePath() {
+            return mLocalPath;
+        }
     }
 }

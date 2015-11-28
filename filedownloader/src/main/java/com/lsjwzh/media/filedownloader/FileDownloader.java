@@ -1,5 +1,10 @@
 package com.lsjwzh.media.filedownloader;
 
+import android.os.Handler;
+import android.os.Looper;
+import android.support.annotation.NonNull;
+import android.util.Log;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -13,17 +18,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import android.os.Handler;
-import android.os.Looper;
-import android.support.annotation.NonNull;
-import android.util.Log;
-
-import com.lsjwzh.media.proxy.Config;
-
 /**
  * Created by panwenye on 14-11-9.
  */
 public class FileDownloader {
+    private static final boolean DEBUG = true;
     /**
      * 清理sPool的阀值。在此值以下，不需要清理sPool
      */
@@ -195,7 +194,7 @@ public class FileDownloader {
             }
             cacheFileRAF = new RandomAccessFile(mLocalPath, "rw");// 创建一个相同大小的文件。
             readedSize = mDownloadInfo.getCurrentSize();
-            if (Config.DEBUG) {
+            if (DEBUG) {
                 Log.e(TAG, "mRemoteUrl:" + mRemoteUrl);
                 Log.e(TAG, "readedSize:" + readedSize);
             }
@@ -212,7 +211,7 @@ public class FileDownloader {
 
             mediaLength = httpConnection.getContentLength();
 
-            if (Config.DEBUG) {
+            if (DEBUG) {
                 Log.e(TAG, "mediaLength:" + mediaLength);
             }
             if (mediaLength == -1) {
@@ -244,19 +243,19 @@ public class FileDownloader {
                 }
             }
         } catch (OutOfMemoryError outOfMemoryError) {
-            if (Config.DEBUG) {
+            if (DEBUG) {
                 Log.e(TAG, "onFailure 内存不足:" + outOfMemoryError.getMessage());
             }
             mIsDownloading.set(false);
             postErrorEvent(outOfMemoryError);
         } catch (final Exception e) {
             if (e instanceof FileNotFoundException && readedSize > 0) {
-                if (Config.DEBUG) {
+                if (DEBUG) {
                     Log.e(TAG, "onSuccess when FileNotFoundException and readedSize>0");
                 }
                 onSuccess(new File(mLocalPath));
             } else {
-                if (Config.DEBUG) {
+                if (DEBUG) {
                     Log.e(TAG, "onFailure:" + e.getMessage());
                 }
                 mIsDownloading.set(false);
@@ -282,7 +281,7 @@ public class FileDownloader {
             }
 
             if (!mIsStop.get() && readedSize >= mediaLength) {
-                if (Config.DEBUG) {
+                if (DEBUG) {
                     Log.e(TAG, "onSuccess:" + readedSize + ":" + mediaLength);
                 }
                 onSuccess(new File(mLocalPath));
@@ -292,7 +291,7 @@ public class FileDownloader {
 
     private void onProgress(long readSize, long mediaLength) {
         postProgressEvent(readSize, mediaLength);
-        if (Config.DEBUG) {
+        if (DEBUG) {
             Log.d(TAG, "onProgress：" + readSize);
         }
     }
@@ -306,7 +305,7 @@ public class FileDownloader {
         mIsDownloading.set(false);
         onProgress(cacheFile.length(), cacheFile.length());
         postCompleteEvent(cacheFile);
-        if (Config.DEBUG) {
+        if (DEBUG) {
             Log.d(TAG, "onProgress end：" + cacheFile.length());
         }
     }
