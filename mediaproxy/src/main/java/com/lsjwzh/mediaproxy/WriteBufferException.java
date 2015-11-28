@@ -1,4 +1,4 @@
-package com.lsjwzh.media.proxy;
+package com.lsjwzh.mediaproxy;
 
 /**
  * 名称: ${SIMPLE_CLASS_NAME}<br>

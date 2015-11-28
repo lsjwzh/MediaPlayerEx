@@ -1,9 +1,8 @@
-package com.lsjwzh.media.proxy;
+package com.lsjwzh.mediaproxy;
 
 /**
  * Config
  *
- * @author hellogv
  */
 public class Config {
 

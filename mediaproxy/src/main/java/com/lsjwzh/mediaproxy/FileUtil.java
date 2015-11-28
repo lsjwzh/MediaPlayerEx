@@ -1,4 +1,4 @@
-package com.lsjwzh.media.proxy;
+package com.lsjwzh.mediaproxy;
 
 /**
  * $CLASS_NAME

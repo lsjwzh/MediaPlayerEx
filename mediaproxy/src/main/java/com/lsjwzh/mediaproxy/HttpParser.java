@@ -1,9 +1,9 @@
-package com.lsjwzh.media.proxy;
+package com.lsjwzh.mediaproxy;
 
 import android.util.Log;
 
-import com.lsjwzh.media.proxy.Config.ProxyRequest;
-import com.lsjwzh.media.proxy.Config.ProxyResponse;
+import com.lsjwzh.mediaproxy.Config.ProxyRequest;
+import com.lsjwzh.mediaproxy.Config.ProxyResponse;
 
 import java.util.ArrayList;
 import java.util.List;

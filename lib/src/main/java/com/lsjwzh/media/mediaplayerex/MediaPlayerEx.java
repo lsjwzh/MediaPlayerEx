@@ -13,8 +13,6 @@ import android.support.annotation.NonNull;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
-import com.lsjwzh.media.download.FileDownloader;
-
 /**
  * interface for MediaPlayerCompat
  * Created by panwenye on 14-8-19.
@@ -180,64 +178,61 @@ public abstract class MediaPlayerEx {
     }
 
     public interface OnPreparedListener extends IEventListener {
-        public void onPrepared();
+        void onPrepared();
     }
 
     public interface OnStartListener extends IEventListener {
-        public void onStart();
+        void onStart();
     }
 
     public interface OnPlayCompleteListener extends IEventListener {
-        public void onPlayComplete(MediaPlayerEx mp);
+        void onPlayComplete(MediaPlayerEx mp);
     }
 
     public interface OnSeekCompleteListener extends IEventListener {
-        public void onSeekComplete(long positionAfterSeek);
+        void onSeekComplete(long positionAfterSeek);
     }
 
     public interface OnPauseListener extends IEventListener {
-        public void onPause();
+        void onPause();
     }
 
     public interface OnStopListener extends IEventListener {
-        public void onStop();
+        void onStop();
     }
 
     public interface OnResetListener extends IEventListener {
-        public void onReset();
+        void onReset();
     }
 
     public interface OnReleaseListener extends IEventListener {
-        public void onRelease();
+        void onRelease();
     }
 
     public interface OnPositionUpdateListener extends IEventListener {
-        public void onPositionUpdate(long position, long duration);
+        void onPositionUpdate(long position, long duration);
     }
 
     public interface OnFileDownloadListener extends IEventListener {
-        public void onProgress(long progress, long length);
-        public void onComplete(File file);
+        void onProgress(long progress, long length);
+        void onComplete(File file);
     }
 
     public interface OnVolumeChangedListener extends IEventListener {
-        public void onVolumeChanged(float newV1, float newV2);
-
+        void onVolumeChanged(float newV1, float newV2);
     }
 
     public interface OnBufferingListener extends IEventListener {
-        public void onBuffering(int loadedPercentage);
-
+        void onBuffering(int loadedPercentage);
     }
 
     public interface OnErrorListener extends IEventListener {
-        public void onError(Throwable e);
+        void onError(Throwable e);
 
     }
 
     public interface OnVideoSizeChangedListener extends IEventListener {
-        public void onVideoSizeChanged(int width, int height);
-
+        void onVideoSizeChanged(int width, int height);
     }
 
     public class UnknownMediaPlayerException extends Exception {

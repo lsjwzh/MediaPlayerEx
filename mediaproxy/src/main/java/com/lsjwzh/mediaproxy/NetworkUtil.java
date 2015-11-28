@@ -1,4 +1,4 @@
-package com.lsjwzh.media.proxy;
+package com.lsjwzh.mediaproxy;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
