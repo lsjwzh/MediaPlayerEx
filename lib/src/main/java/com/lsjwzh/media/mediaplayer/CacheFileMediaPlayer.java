@@ -143,7 +143,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
         return uri.startsWith("http:") || uri.startsWith("https:");
     }
 
-    private void waitreinit() {
+    private void waitForReinit() {
         if (DEBUG) {
             Log.e("mpex", "call waitreinit");
         }
@@ -152,9 +152,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
             mMediaPlayer.setOnSeekCompleteListener(null);
             mMediaPlayer.setOnBufferingUpdateListener(null);
             mMediaPlayer.setDisplay(null);
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                mMediaPlayer.setSurface(null);
-            }
+            mMediaPlayer.setSurface(null);
             mMediaPlayer.release();
             mMediaPlayer = null;
         }
@@ -178,7 +176,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
                         }
                     }
                     if (isPrepared()) {
-                        waitreinit();
+                        waitForReinit();
                         if (mMediaDownloader != null && mMediaDownloader.isFinished()) {
                             tryPrepareMp();
                         }
