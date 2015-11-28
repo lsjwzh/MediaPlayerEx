@@ -1,8 +1,5 @@
 package com.lsjwzh.media.mediaplayer;
 
-import java.io.File;
-import java.io.IOException;
-
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
@@ -10,6 +7,9 @@ import android.support.annotation.IntDef;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * Created by panwenye on 14-8-20.
@@ -48,59 +48,59 @@ public class CacheFileMediaPlayer extends MediaPlayer {
     @Override
     public void setDataSource(Context context, String uri) {
         mContext = context;
-        try {
-            if (isRemoteMedia(uri)) {
-                if (mMediaDownloader != null) {
-                    mMediaDownloader.stop();
-                }
-                mMediaDownloader = mMediaDownloaderFactory.createMediaDownloader(uri);
-                mMediaDownloader.registerListener(new MediaDownloader.OnDownloadListener() {
-                    @Override
-                    public void onProgress(long progress, long length) {
-                        if (DEBUG) {
-                            Log.e("mpex", "progress changed:" + progress);
-                        }
-                        long prepareBufferSize = getMinBufferBlockSize();// (long) Math.max(getMinBufferBlockSize(),
-                        // getPrepareBufferRate() * length);
-                        if (progress - latestProgressOnPrepare >= prepareBufferSize
-                                || (mMediaDownloader != null && progress == length)) {
-                            tryPrepareMp();
-                        }
-                        // notify buffering event
-                        if (progress - latestProgressOnPrepare < prepareBufferSize) {
-                            for (EventListener listener : getListeners(OnBufferingListener.class)) {
-                                ((OnBufferingListener) listener)
-                                        .onBuffering((int) ((progress - latestProgressOnPrepare) * 1f / getMinBufferBlockSize()) * 100);
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onSuccess(File pFile) {
-                        if (DEBUG) {
-                            Log.e("mpex", latestProgressOnPrepare + "/" + pFile.length());
-                        }
-                        tryPrepareMp();
-                        for (EventListener listener : getListeners(OnBufferingListener.class)) {
-                            ((OnBufferingListener) listener).onBuffering(100);
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        for (EventListener listener : getListeners(OnErrorListener.class)) {
-                            ((OnErrorListener) listener).onError(t);
-                        }
-                    }
-                });
-                mMediaDownloader.start();
-            } else {
-                initMediaPlayer();
-                mMediaPlayer.setDataSource(uri);
+        if (isRemoteMedia(uri)) {
+            if (mMediaDownloader != null) {
+                mMediaDownloader.stop();
             }
-        } catch (IOException e) {
-            for (EventListener listener : getListeners(OnErrorListener.class)) {
-                ((OnErrorListener) listener).onError(e);
+            mMediaDownloader = mMediaDownloaderFactory.createMediaDownloader(uri);
+            mMediaDownloader.registerListener(new MediaDownloader.OnDownloadListener() {
+                @Override
+                public void onProgress(long progress, long length) {
+                    if (DEBUG) {
+                        Log.e("mpex", "progress changed:" + progress);
+                    }
+                    long prepareBufferSize = getMinBufferBlockSize();// (long) Math.max(getMinBufferBlockSize(),
+                    // getPrepareBufferRate() * length);
+                    if (progress - latestProgressOnPrepare >= prepareBufferSize
+                            || (mMediaDownloader != null && progress == length)) {
+                        tryPrepareMp();
+                    }
+                    // notify buffering event
+                    if (progress - latestProgressOnPrepare < prepareBufferSize) {
+                        for (EventListener listener : getListeners(OnBufferingListener.class)) {
+                            ((OnBufferingListener) listener)
+                                    .onBuffering((int) ((progress - latestProgressOnPrepare) * 1f / getMinBufferBlockSize()) * 100);
+                        }
+                    }
+                }
+
+                @Override
+                public void onSuccess(File pFile) {
+                    if (DEBUG) {
+                        Log.e("mpex", latestProgressOnPrepare + "/" + pFile.length());
+                    }
+                    tryPrepareMp();
+                    for (EventListener listener : getListeners(OnBufferingListener.class)) {
+                        ((OnBufferingListener) listener).onBuffering(100);
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    for (EventListener listener : getListeners(OnErrorListener.class)) {
+                        ((OnErrorListener) listener).onError(t);
+                    }
+                }
+            });
+            mMediaDownloader.start();
+        } else {
+            initMediaPlayer();
+            try {
+                mMediaPlayer.setDataSource(uri);
+            } catch (IOException e) {
+                for (EventListener listener : getListeners(OnErrorListener.class)) {
+                    ((OnErrorListener) listener).onError(e);
+                }
             }
         }
     }
@@ -243,7 +243,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
             if (mSurfaceHolder != null) {
                 mMediaPlayer.setDisplay(mSurfaceHolder);
             } else if (mSurface != null) {
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
                     mMediaPlayer.setSurface(mSurface);
                 }
             }
