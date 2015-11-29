@@ -20,7 +20,7 @@ public class EventListenerManager {
     Class clazzAsKey = findDirectSubClassOfEventListener(listenerClass);
     // if not any listeners,create a listener list
     if (!mListenersMap.containsKey(clazzAsKey)) {
-      LinkedList<EventListener> listeners = new LinkedList<EventListener>();
+      LinkedList<EventListener> listeners = new LinkedList<>();
       listeners.add(listener);
       mListenersMap.put(clazzAsKey, listeners);
     } else {
@@ -53,7 +53,7 @@ public class EventListenerManager {
       @NonNull Class<T> pTClass) {
     Class clazzAsKey = findDirectSubClassOfEventListener(pTClass);
     if (!mListenersMap.containsKey(clazzAsKey)) {
-      LinkedList<EventListener> listeners = new LinkedList<EventListener>();
+      LinkedList<EventListener> listeners = new LinkedList<>();
       mListenersMap.put(clazzAsKey, listeners);
     }
     return (List<T>) mListenersMap.get(clazzAsKey);
@@ -77,7 +77,7 @@ public class EventListenerManager {
   }
 
   private List<Class> findEventInterfaces(Class pListenerClass) {
-    List<Class> classList = new ArrayList<Class>();
+    List<Class> classList = new ArrayList<>();
     for (Class clazz : pListenerClass.getInterfaces()) {
       if (EventListener.class.isAssignableFrom(clazz)) {
         classList.add(clazz);
