@@ -22,7 +22,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
     private StrongerMediaPlayer mMediaPlayer;
     private MediaMonitor mMediaMonitor;
     private MediaDownloader mMediaDownloader;
-    private final MediaDownloaderFactory mMediaDownloaderFactory;
+    private final MediaDownloader.MediaDownloaderFactory mMediaDownloaderFactory;
 
     @State
     private int mStateWithLocalCache;
@@ -41,7 +41,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
     private boolean mLooping;
 
 
-    public CacheFileMediaPlayer(MediaDownloaderFactory mediaDownloaderFactory) {
+    public CacheFileMediaPlayer(MediaDownloader.MediaDownloaderFactory mediaDownloaderFactory) {
         mMediaDownloaderFactory = mediaDownloaderFactory;
     }
 

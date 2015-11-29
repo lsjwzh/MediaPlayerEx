@@ -14,7 +14,6 @@ import android.view.View;
 import com.lsjwzh.media.filedownloader.FileDownloader;
 import com.lsjwzh.media.mediaplayer.CacheFileMediaPlayer;
 import com.lsjwzh.media.mediaplayer.MediaDownloader;
-import com.lsjwzh.media.mediaplayer.MediaDownloaderFactory;
 import com.lsjwzh.media.mediaplayer.MediaPlayer;
 
 import java.io.File;
@@ -71,7 +70,7 @@ public class MainActivity extends ActionBarActivity {
             mMediaPlayer.clearListeners();
             mMediaPlayer.release();
         }
-        mMediaPlayer = new CacheFileMediaPlayer(new MediaDownloaderFactory() {
+        mMediaPlayer = new CacheFileMediaPlayer(new MediaDownloader.MediaDownloaderFactory() {
             @Override
             public MediaDownloader createMediaDownloader(String uri) {
                 return new MediaDownloaderImpl(uri);

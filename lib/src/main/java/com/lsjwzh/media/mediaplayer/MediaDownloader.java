@@ -65,4 +65,11 @@ public abstract class MediaDownloader {
 
     void onError(Throwable t);
   }
+
+  /**
+   * Created by wenye on 15/11/28.
+   */
+  public interface MediaDownloaderFactory {
+    MediaDownloader createMediaDownloader(String uri);
+  }
 }
