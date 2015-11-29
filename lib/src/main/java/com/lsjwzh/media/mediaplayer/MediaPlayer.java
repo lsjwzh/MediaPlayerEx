@@ -1,17 +1,12 @@
 package com.lsjwzh.media.mediaplayer;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.LinkedList;
-import java.util.List;
-
 import android.annotation.TargetApi;
 import android.content.Context;
-import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+
+import java.util.List;
 
 /**
  * abstract MediaPlayer
@@ -21,12 +16,11 @@ public abstract class MediaPlayer {
 
     private EventListenerManager mEventListenerManager = new EventListenerManager();
 
-    // ToDo check storage
-    String mCacheDir = Environment.getExternalStorageDirectory() + "/mpex";
     /**
      * min buffer size
      */
-    long mMinBufferBlockSize = DEFAULT_MIN_PREPARE_BUFFER_SIZE;
+    private long mMinBufferBlockSize = DEFAULT_MIN_PREPARE_BUFFER_SIZE;
+    private long mPrepareBufferSize = DEFAULT_MIN_PREPARE_BUFFER_SIZE;
 
     /**
      * @param context only needed in ExoPlayer,SysMediaPlayer will ignore this arg
@@ -82,12 +76,12 @@ public abstract class MediaPlayer {
 
     public abstract void setLooping(boolean looping);
 
-    public String getCacheDir() {
-        return mCacheDir;
+    public long getPrepareBufferSize() {
+        return mPrepareBufferSize;
     }
 
-    public void setCacheDir(String pCacheDir) {
-        mCacheDir = pCacheDir;
+    public void setPrepareBufferSize(long prepareBufferSize) {
+        mPrepareBufferSize = prepareBufferSize;
     }
 
     public long getMinBufferBlockSize() {
@@ -117,8 +111,8 @@ public abstract class MediaPlayer {
 
     @NonNull
     public synchronized <T extends EventListener> List<T> getListeners(
-        @NonNull Class<T> pTClass) {
-       return mEventListenerManager.getListeners(pTClass);
+            @NonNull Class<T> pTClass) {
+        return mEventListenerManager.getListeners(pTClass);
     }
 
     public interface OnPreparedListener extends EventListener {

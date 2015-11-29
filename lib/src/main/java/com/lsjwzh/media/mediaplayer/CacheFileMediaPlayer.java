@@ -59,7 +59,8 @@ public class CacheFileMediaPlayer extends MediaPlayer {
                     if (DEBUG) {
                         Log.e("mpex", "progress changed:" + progress);
                     }
-                    long prepareBufferSize = getMinBufferBlockSize();// (long) Math.max(getMinBufferBlockSize(),
+                    long prepareBufferSize = latestProgressOnPrepare == 0
+                            ? getPrepareBufferSize() : getMinBufferBlockSize();
                     // getPrepareBufferRate() * length);
                     if (progress - latestProgressOnPrepare >= prepareBufferSize
                             || (mMediaDownloader != null && progress == length)) {
