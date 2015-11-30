@@ -161,7 +161,10 @@ public abstract class MediaPlayer {
 
     public interface OnErrorListener extends EventListener {
         void onError(Throwable e);
+    }
 
+    public interface OnInfoListener extends EventListener {
+        boolean onInfo(MediaPlayer mp, int what, int extra);
     }
 
     public interface OnVideoSizeChangedListener extends EventListener {

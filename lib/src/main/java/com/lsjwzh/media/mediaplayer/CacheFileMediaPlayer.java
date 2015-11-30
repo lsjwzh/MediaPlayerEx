@@ -241,6 +241,18 @@ public class CacheFileMediaPlayer extends MediaPlayer {
                     }
                 }
             });
+            mMediaPlayer.setOnInfoListener(new android.media.MediaPlayer.OnInfoListener() {
+                @Override
+                public boolean onInfo(android.media.MediaPlayer mp, int what, int extra) {
+                    for (EventListener listener : getListeners(OnInfoListener.class)) {
+                        if (((OnInfoListener) listener)
+                                .onInfo(CacheFileMediaPlayer.this, what, extra)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
             if (mSurfaceHolder != null) {
                 mMediaPlayer.setDisplay(mSurfaceHolder);
             } else if (mSurface != null) {
@@ -262,7 +274,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
             mHasPrepared = true;
             latestProgressOnPrepare = mMediaDownloader.getDownloadedSize();
             for (EventListener listener : getListeners(OnPreparedListener.class)) {
-                ((OnPreparedListener) listener).onPrepared();
+                ((OnPreparedListener) listener).onPrepared(CacheFileMediaPlayer.this);
             }
         } catch (IOException e) {
             for (EventListener listener : getListeners(OnErrorListener.class)) {
@@ -303,7 +315,7 @@ public class CacheFileMediaPlayer extends MediaPlayer {
                     if (DEBUG) {
                         Log.e("mpex", "call onPrepared");
                     }
-                    ((OnPreparedListener) listener).onPrepared();
+                    ((OnPreparedListener) listener).onPrepared(CacheFileMediaPlayer.this);
                 }
             }
         });
