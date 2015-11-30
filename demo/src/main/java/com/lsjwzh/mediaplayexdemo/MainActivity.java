@@ -60,9 +60,27 @@ public class MainActivity extends ActionBarActivity {
 
             @Override
             public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
             }
         });
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mMediaPlayer != null) {
+            mMediaPlayer.pause();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mMediaPlayer != null
+                && mMediaPlayer.isPrepared()
+                && !mMediaPlayer.isPlaying()
+                && !mMediaPlayer.isReleased()) {
+            mMediaPlayer.start();
+        }
     }
 
     private void initMpex(final Surface s) {

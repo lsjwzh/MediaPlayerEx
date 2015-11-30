@@ -116,7 +116,7 @@ public abstract class MediaPlayer {
     }
 
     public interface OnPreparedListener extends EventListener {
-        void onPrepared();
+        void onPrepared(MediaPlayer mp);
     }
 
     public interface OnStartListener extends EventListener {
