@@ -3,6 +3,7 @@ package com.lsjwzh.media.mediaplayer;
 import android.support.annotation.NonNull;
 
 import java.io.File;
+import java.util.EventListener;
 import java.util.List;
 
 /**
@@ -64,7 +65,7 @@ public abstract class MediaDownloader {
     return mEventListenerManager.getListeners(pTClass);
   }
 
-  public interface OnDownloadListener extends com.lsjwzh.media.mediaplayer.EventListener {
+  public interface OnDownloadListener extends EventListener {
     void onProgress(long progress, long length);
 
     void onSuccess(File pFile);

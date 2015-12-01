@@ -97,10 +97,10 @@ public class MainActivity extends ActionBarActivity {
         mMediaPlayer.setDataSource(MainActivity.this, "http://mofunsky-video.qiniudn.com/126/314/20150324094118997736001676.mp4");
         mMediaPlayer.setDisplay(s);
         mMediaPlayer.registerListener(MediaPlayer.OnPreparedListener.class, new MediaPlayer.OnPreparedListener() {
-			@Override
-			public void onPrepared() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
 				Log.e("mpex", " onPrepared then start");
-				mMediaPlayer.start();
+                mp.start();
 			}
 		});
         mMediaPlayer.registerListener(MediaPlayer.OnErrorListener.class,new MediaPlayer.OnErrorListener(){
