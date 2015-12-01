@@ -58,6 +58,12 @@ public abstract class MediaDownloader {
     return mEventListenerManager.getListeners(OnDownloadListener.class);
   }
 
+  @NonNull
+  public synchronized <T extends EventListener> List<T> getListeners(
+          @NonNull Class<T> pTClass) {
+    return mEventListenerManager.getListeners(pTClass);
+  }
+
   public interface OnDownloadListener extends com.lsjwzh.media.mediaplayer.EventListener {
     void onProgress(long progress, long length);
 
