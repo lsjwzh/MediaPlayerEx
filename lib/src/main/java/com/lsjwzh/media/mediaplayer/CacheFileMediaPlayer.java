@@ -375,6 +375,9 @@ public class CacheFileMediaPlayer extends MediaPlayer {
         if (!mHasStarted) {
             return;
         }
+        if (mMediaDownloader != null) {
+            mMediaDownloader.stop();
+        }
         if (mMediaPlayer != null) {
             mMediaPlayer.stop();
             if (mMediaMonitor != null) {
@@ -391,6 +394,9 @@ public class CacheFileMediaPlayer extends MediaPlayer {
         if (!mHasStarted) {
             return;
         }
+        if (mMediaDownloader != null) {
+            mMediaDownloader.stop();
+        }
         if (mMediaPlayer != null) {
             mMediaPlayer.reset();
             if (mMediaMonitor != null) {
@@ -404,6 +410,9 @@ public class CacheFileMediaPlayer extends MediaPlayer {
 
     @Override
     public void release() {
+        if (mMediaDownloader != null) {
+            mMediaDownloader.stop();
+        }
         if (mMediaPlayer != null) {
             if (mMediaMonitor != null) {
                 mMediaMonitor.quit();
