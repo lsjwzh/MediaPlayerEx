@@ -49,11 +49,11 @@ public class CacheFileMediaPlayer extends MediaPlayer {
     @Override
     public void setDataSource(Context context, String uri) {
         mContext = context;
+        if (mMediaDownloader != null) {
+            mMediaDownloader.stop();
+        }
+        mMediaDownloader = mMediaDownloaderFactory.createMediaDownloader(uri);
         if (isRemoteMedia(uri)) {
-            if (mMediaDownloader != null) {
-                mMediaDownloader.stop();
-            }
-            mMediaDownloader = mMediaDownloaderFactory.createMediaDownloader(uri);
             mMediaDownloader.registerListener(new MediaDownloader.OnDownloadListener() {
                 @Override
                 public void onProgress(long progress, long length) {
